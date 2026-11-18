@@ -1,0 +1,20 @@
+[package]
+name = "treecraft"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.37"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "tga", "bmp"] }
+flate2 = "1"
+roxmltree = "0.21"
+rfd = "0.17"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# The 3D view is drawn on the CPU; keep debug builds fast enough to orbit smoothly.
+[profile.dev]
+opt-level = 2
+
+[profile.dev.package."*"]
+opt-level = 3

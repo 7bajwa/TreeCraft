@@ -1,0 +1,326 @@
+[00:00] So, to start with this pop-up, where we have recent files, we can have new file with some
+[00:11] research in there, recent file have recent file, we can have new file, and it have a game
+[00:18] then a VFX, which can be there, and then on the samples, we have games, samples in the
+[00:26] VFX samples, learning samples, which explain bunch of the tools and preference and settings
+[00:35] in there, then you can click and go to online library here, video tutorials, documentation,
+[00:42] I have button to show always in there, and the recent, in the new, I always go to blind,
+[00:49] just to showcase, and then for the thing, we have a generation tab in here, properties
+[00:57] of main window material tab, and other things, and then let's start from the menu,
+[01:05] you have file menu, which have all these settings, and we have recent files, which we can see here
+[01:12] on the recent one, and in the advanced, we have compute setting, which are used, so then we have
+[01:20] edit, and we have undo, redo, selection, and then train phone preferences, tools, have bunch of
+[01:31] tools, window have full screen setting, and then bunch of toolbars, a reset layer, alpav,
+[01:38] have stuff, and then we have generation, generation have add menu, which have all these
+[01:50] settings, and then trunks, branches, leaves, these have batched different ones, decoration,
+[01:59] different decorations, different photogrammetry tools, mesh, mesh convert, stitch, and then default
+[02:07] generators, which are basically here as well, I like them, like trunk to be this menu like this,
+[02:15] and branches, leaves, decoration, all of these, like these wine can be in the decoration also,
+[02:21] so we don't have to put them separately, like cab, fin, nod, all our decorations here,
+[02:27] so we can add them in decoration, zone can be separate thing at the bottom, like mesh, mesh convert,
+[02:33] stitch, all these could be part, these are part of photogrammetry, so we don't need to have them
+[02:38] outside, and base, reference, and zone, all these could be in the bottom, right, so in the zone
+[02:48] basically, so those would be related to that, so we have like lesser things in this menu, and then
+[02:54] actions, if we have something, then we see action, action have, again, add geometry, same menu,
+[03:01] and then select make template, geometry force, once we have geometry force this open up,
+[03:07] hand drawing to, you know, visibility, variance settings, selection settings,
+[03:14] I can color settings here inside, but overall this menu is there, and then we have randomize,
+[03:19] randomize, just randomize the scene, so if I select, and I add art trunk, and then I right click on that,
+[03:27] we can right click on the generation window, and we get geometry,
+[03:35] add geometry, same settings, zoom style, how we wanted compact, or standard orientation,
+[03:42] you know, and then again, same all settings, then trunk, we can add, and we can make geometry force,
+[03:50] and we have same, add geometry, which will add it as a child, and all the other settings,
+[03:55] which you had in the add menu, and we can say, geometry force, we say okay, and now if we see in,
+[04:02] in the actions, we are selected, you have basically all the same action settings,
+[04:10] and now we have geometry force setting, which have selection to remove and replace, and this
+[04:17] is the same setting, when we right click on it also, and then we have this tiny setting button,
+[04:23] which I have zoom style, orientation, I think, same settings in here, and at the bottom, it
+[04:30] shows the amount of forces we have, you know, you click on it, you add force, you can add different
+[04:37] forces in there, visibility trunk, we already have, you can add collision to selected object,
+[04:44] to which one you have within the scene, you have camera, you can add cameras, different ones,
+[04:50] you can add projector, and there are different projectors, and then you have ad mesh helpers,
+[04:57] so these are basically in the add, I believe we can have it in this add menu also, rather than
+[05:03] having in the icons in there, so we can have them in the add menu also, or you have to that will
+[05:11] be much better, rather than here, and then we have properties in the global one, so you have
+[05:19] wind lighting, global properties, winder properties, and wind wizard, you compute AO, and randomize
+[05:28] export, new file, open file, all that stuff, so you can, you click on wind, and it go to this
+[05:37] wind setting, which have main and mode, different ones, presets, different presets, and in the action,
+[05:47] you click on wind wizard, it open up the wind wizard, you have, basically again the type of presets,
+[05:54] you have settings, different busy, and what type of the face, bunch of settings, and then you can press
+[06:03] okay, right, and then you have lighting, you click on lighting, you go to the global
+[06:09] lighting settings, here, most of them self-explanatory, you can type, you know, all the truck down,
+[06:18] different color, quality, shadow quality, and then visualization style, all the bunch of stuff,
+[06:29] and then, you know, this individually split it into different ones, so that's lighting, you come
+[06:36] back, you global properties, again, global property, or again, all of the settings in here, and then,
+[06:43] we go to generation, you have size scalar, overall tree, you, how you want the geometry to be
+[06:52] triangular quad, or we can have another setting in with this, called mixed, then you have shape,
+[06:59] you know, radius, you know, of the zone I think this is, like the tree, the starting zone,
+[07:04] the shape, sync, and roll, and the other thing, LOD, these are the dynamic LEDs, you can play with
+[07:10] it, you have many LEDs you want, and how those branches should reduce, how decoration should
+[07:17] reduce, how leads should be reducing by the curve, how front should be reducing, and then
+[07:24] grow scale basically, you can play with the LEDs here, you see, the branches and things in there,
+[07:30] like I can, we can fully available, and then, you know, it, it, it play with the setting,
+[07:39] and then random seed and jump on and everything is there, and then collision, again, automatic,
+[07:45] and other settings is there, we can add collisions from here, should be able to add collision from
+[07:50] here as well, and now, let's go back to global setting, and then there is, window properties,
+[08:00] window properties, again, have all settings, and then rendering, how we want, you know,
+[08:05] head tail is seeing, and other things, viewport setting, of the colors, and lighting,
+[08:13] and then, interactions, rotate, translate, and global, different thing, and then you have
+[08:22] generator, node, and freehand, basically, so generator is basically all the generators, node,
+[08:29] we can edit, individual, leave, and everything with this, freehand is, basically, we can draw,
+[08:37] cut, trim, basic, different nodes in there, you can see some of the settings here,
+[08:44] and there, that's global setting, and you can again, go to documentation, viewport, new
+[08:51] open file, and when you click open, it open, it is dialogue, and then again, which have sample,
+[08:57] interesting folders, and everything, and when you click browse samples, it opens the sample,
+[09:04] the same start-up menu, and I think on the open also, we can open, and we can say, okay,
+[09:11] we can open from here, and that's the same thing, so we have, you know, the daily browsing thing,
+[09:18] and you click on native dialogue, it click, and it opens the normal window dialogue also,
+[09:23] and now, if I click see on the main viewport, for now, before going to the actual node, and you have
+[09:31] these again, three settings, you have add menu, similar to before, you have visibility settings,
+[09:37] you have seasons, which you can change, and show drop leaves, which will fall down in the season,
+[09:46] LODs, again, you have different LOD bar, which you have on the left also,
+[09:52] basically, you know, you click and change high-low, LODs, you know, manual, and distance,
+[09:59] all the stuff, and then you can have seen objects, basically, these are all the things you have
+[10:05] it here as well, I think you can add it from here, or you can add it from here, I think we should
+[10:10] be able to add it from the add menu also everywhere, so you have forces, you can add force,
+[10:15] here are like direction, minute, north, twist, and all these settings, and then geometry,
+[10:21] force is here, collision object, same scene camera, same things, you know, add projectors,
+[10:29] and mesh helpers, and then wind setting, you have, I think, the same wind setting, and
+[10:35] if you want to turn it on and off, you can press and turn it on,
+[10:38] glide, all the good stuff, presets, shadow quality, embed occlusion, you know,
+[10:46] like you have the compute and inclusion, and that is there also, render settings, again,
+[10:52] lighting, material, what is color, devil, and other, show all the things overlay, style,
+[11:02] seeing things, gizmo, which gizmo you want, like, basically, even you have it, you can go to
+[11:07] node, and then you have gizmo, and I think you can go to translate, gizmo, scale, you know,
+[11:14] all the different gizmo, basically, in their local space, and world space, so, and when you
+[11:20] have this node, you have this type of gizmo with some settings, which you can change, like length,
+[11:26] direction, gravity, and other things, and then you have zoom, zoom, basically, at the reset,
+[11:33] and in the view, and you compute a, and collision, and shade, and then again, you can, you know,
+[11:42] make it minimize, and maximize, which is good, the minimas look more compact and nice,
+[11:47] with the beautiful icons, and then in the viewport, you see some statistics here,
+[11:53] and you have scale, and then again, you have show, you have, I think,
+[11:57] the height indicator, you can turn it on off, all the things, and then you have light,
+[12:03] with the rear, you can click, and rotate the light around, and see, and I think there is a value
+[12:10] also, and then you have fan, and I think you can turn around, and I select, if you click on it,
+[12:17] you turn it on and off, which is nice, but otherwise, you can turn it on, or off,
+[12:21] here, like, wind, you can enable the wind, and it has shortcut, and then you have range here,
+[12:26] the range bar comes in here, and how much you want it to be, so that also stuff is here,
+[12:33] as well, and then, I can come to wind, and, you know, turn it off. So, this is the viewport,
+[12:41] and now comes in the, there is an output, which is fine, but you can close it for now, or,
+[12:49] and maybe, we click, and then, it reset, I added the window. So, now, material, have, you can
+[12:59] add new material, in there, you click this, import the textures, and it added new, and we can
+[13:06] have a new button here, as well. So, we say, new material, and we say, okay, and then we have
+[13:10] material, material have some, you know, setting, like, two-sided seasons, and all the other settings,
+[13:17] which can have a material have, and then, here, you can click, and it open, and ask for a texture,
+[13:23] and texture have this window, where you can have some image editing options, and some visualization
+[13:30] word, and all the image things, and then, you can load the image from here, also, you can reload
+[13:35] the image, and remove the image from here, and, yeah, so, you can have gradient, you can have
+[13:41] radial gradient, you can have noise, so, all these things, you can play with the settings in here,
+[13:47] and, you know, make it bigger, or small, and center, all the things, you know, all the things,
+[13:54] so, play with, and there are your color, and then, curve, all good stuff, and then, angle, also,
+[13:58] so, this, you can have, and you will get it in here, and like that, you can do it for everything,
+[14:02] so, you can ask for a image, and open up, you can add image, you can drag and drop image, here as well,
+[14:10] then, link to, these are all the parameters, and then, link to these, we have cutout meshes,
+[14:16] cutout meshes, you have, like, for now, there's nothing, it's a none, you can add it, add another
+[14:20] slow, and then, you can add mesh, you can edit it, or import, basically, you can go to mesh,
+[14:27] or, you can edit it, if you go to mesh, there is nothing right now, but you can edit it,
+[14:33] edit open up this dialog box, and open the mesh step, mesh step have edit mesh, which will open
+[14:41] again, this editor, you can load the geometry from here, the open, you know, you see the high, medium,
+[14:47] low, and for now, it's the embedded, which means this is the edit menu, but we can always open,
+[14:52] and replace this with custom-made mesh, reload the mesh, and export the mesh, and in the editor menu,
+[14:59] kindly, we have, we are in the points, so point is basically add point mode, so you can click,
+[15:06] and you can add the point, and it automatically mesh it, and then, you have angle,
+[15:11] angle is for the anchor point, so you move the anchor point, where you want to place it,
+[15:16] as per the texture, and if you want to remove the points, you can have eraser, and then you can
+[15:22] remove some points, and again, you can reset the whole thing, you can return on the angle,
+[15:28] and start adding points, basically, and then, we have triangulation, split, and grid,
+[15:35] so you can have, you know, tessellation inside there, you say split, which will split the edges
+[15:43] into more and more, grid, gonna add, you know, polygon grid, you know, and yeah, so these are like
+[15:51] double-sided, if you want double-sided mesh, and then brush settings, material settings,
+[15:56] and then, you can click on this arrows to put in high poly, medium, and low poly,
+[16:01] so in the high one, you add it here, and imagine, you add more point in here, you add it there,
+[16:10] you can bring it back, and you can add it here, and then, on this mesh, you add it, put more point,
+[16:15] and you can say, okay, the pivot should be here, angle, and then you put it here, and add it,
+[16:22] and then, you bring it back, again, you put pivot here, angle, and push it in this, and then,
+[16:30] you maybe erase one more, and fix the things, how you can push it in there, right, so now,
+[16:37] you have all the settings in here, but you can, you know, bring any of these, and then, put
+[16:42] any of that in another one, simple as that, so yeah, so this is basically in there, and then,
+[16:48] you have erase selection, and then, symmetry, mirror, and auto-generate points, based on that,
+[16:56] then, straighten, and other things, reset, straighten, and then, anchor points, anchor points,
+[17:04] again, you click add, and it add a point, you can change the direction of the point, and then,
+[17:08] you send it to there, right, so you have two, you click, click, click, and edit there, and then,
+[17:15] you have angle points, and then, erase anchor points, so if you want to erase it, and then, send it
+[17:19] there, and you bring this one in, and then, release this, and send it back, and then, again,
+[17:25] you have reset and clear anchor points, and then, paint, paint is nice, it adds the paint to
+[17:34] node, make geometry there, which is fine, and then, you have, you know, erase here for that thing,
+[17:45] which I think is like, really counter-intuitive this one, what I want is more like this, you have
+[17:52] these points, you can keep adding point, and then, you have Boolean point curve basically,
+[18:01] so if you click on that, and we create another mesh cutout, and it just create a hole in the
+[18:09] basically, so I add these points, three points from that cutout tool, and it should have a hole in
+[18:15] there, but like for example, like for now, just paint is fine, so if I paint something here, then,
+[18:23] make a small, and I will mark, and I will make, put paint here, and then I will be here, it will
+[18:31] add a hole in there, and then, you have selection, and clear, and other things, and again, this
+[18:38] brush setting is there, which could be here as well, next to the paint, could be here, brush setting,
+[18:45] yeah, so size, green cell and everything, and then, you have hole, and then, you can
+[18:50] mark, there's a material, which you want to see on the back, UV, and other things, and then,
+[18:58] you, you know, see the opacity and color, show all meshes or something like that, so if you want,
+[19:04] you can do that, you can press done, okay, and you say okay, and then you have cutout mesh in here,
+[19:10] and the material in here, you will have mesh cutout here, yeah, you can delete it here, and then,
+[19:16] you can come to meshes, you can edit the mesh, again, you can add the mesh, which will import the mesh,
+[19:22] you can copy paste from here, copy and paste into another thing, and duplicate, add and remove,
+[19:28] basically rename it, duplicate it, which is not needed, like we just, can I have like new mesh,
+[19:34] like this one, you click on this, and it, you know, create a new one, this will a new mesh in here,
+[19:40] and then, we can open it directly from here, okay, so like, clicking, it create a new mesh,
+[19:46] slot in here, for example, like this, we click, and we add new mesh, and if I spoke here, now,
+[19:50] we have that mesh, and then, we can open it, or simply just edit it, and when we edit it, and
+[19:56] say, yeah, do you want to convert it to embedded, you say yes, and then, it comes to this one, and
+[20:01] here, you can edit, basically, the mesh, normally, with the point, you can create, and you can put it
+[20:07] here, and it's done, and you have mesh, or you can export it, and then, edit it in a third
+[20:13] part, use software, and bring it back, material sets are nice for the seasons, and everything,
+[20:18] again, you can add, and there is access to edit here, we can definitely remove it from here,
+[20:23] this pop up, and it's okay, and then, you say, like, overhead season, you can add members,
+[20:30] you know, and then, you can select where you want it to be in the season, right, in the curve,
+[20:36] like, start of the season, this is the end of the season, so what happens when, and then,
+[20:41] when you want to edit, you can edit them in a material anyway, okay, so material set you have,
+[20:47] and then, wait, and everything, so if you want to edit, you just edit it in the material editor,
+[20:52] so this way, you can have different texture sets, and different things, and then, you can blend them
+[20:58] in the material sets, for example, and then, displacement, again, displacement you add,
+[21:04] and, you know, plus-minus, this one is, ugly, don't need, basically, because we have here,
+[21:09] duplicate, and add new, and once we have, like, close-up of this material, and then,
+[21:15] this select from drop-down, and in the setting, we should have, between the name in here,
+[21:19] and we should easily be able to change the name, or we can just have this rename button in here,
+[21:25] which help us just rename, because there is nothing else in this pop-up box anyway, okay, so
+[21:30] this, like, new, duplicate a rename, and then, move them up and down, basically, you know,
+[21:37] in here, maybe we can have, at the bottom, we can say, reorder, right, and then, you can select the
+[21:43] material from here, this button, and assign on top of the thing, also, simply, so that's basically,
+[21:50] materializer, we type. Now, let's look at all the settings, and here, we have, basically, all
+[21:58] the settings, we go by generation, in generation, we have different type of generations in here,
+[22:05] and we have all the properties, and then, in spline, we have spline property, you go down,
+[22:12] you see, we have a lot of properties, where the values, with variance, and with the curve,
+[22:21] forces, in the force, and turn and turn off, you can, some drop downs, result,
+[22:29] seated, shape, okay, some here, skin, you have polygon, spline only, subdev, and all the other
+[22:39] settings, welding, through other branches, bunch of settings, UV, and unwrap settings, again,
+[22:48] unrestrictor, automatic, you know, style, again, start, and tiling, and other things.
+[22:56] Displacement, again, it will be linked to the displacement, you can use the displacement map,
+[23:01] you can source materials, or noise, you can use fit to geometry, UVs, and other stuff, and material,
+[23:09] again, if you select the material, you can add another in here, and select which material you want,
+[23:15] in here, you can change, and select where it should come, and then start, and all the things.
+[23:21] Animation is another thing, it will need to win, and other groups stuff, so here is all
+[23:26] all the settings, segments, again, for the geometry, and how much you want,
+[23:34] segments in there, and some of the drop downs, here is in the LEDs, self-explanatory physics,
+[23:43] and hand-drawn, hand-drawn is on the top, again, so this is for the branches, and then let's look at
+[23:51] branches on trunk, have the same type of setting, so if you look at the exact same setting as
+[23:57] this is just in the generation, it will be more number of time on top of other, and in the skin,
+[24:05] they will be welding on, so that's just the pre-set of the thing under the branch, so trunk and
+[24:12] branches are the same, just different settings, and let's add leaf, now leaf have same generation
+[24:22] properties as others, absolute, and other, all the settings stay the same, skin is a bit different,
+[24:29] here is you have the city size, another thing, and the type, you can have cutout leaves,
+[24:34] in the material, we have cutout, so you can have it in there, example, I can go to in here, you have
+[24:40] mesh, basically, and then you can use it in here, okay, it's any, or you can use fixed, and then
+[24:47] other bunch of settings, lighting, and then forces, again, it have some, basically, you can use,
+[24:55] this is the mesh force, which you can use in there, and you can use another force is also,
+[24:59] which we can add from here, okay, the orientation is important, it's like how anchor point is,
+[25:09] how it will be, then all the setting for the leaf, and adjustment, deformation, like band fold,
+[25:16] all the good stuff, and all this thing, the lighting, lighting is like how it will shade in the scene,
+[25:22] all the thing, global, local, deep, and all these things, all the settings and adjustment,
+[25:29] and the material, same, same material setting, in the, in the skin, you have material,
+[25:35] and then, which mesh you want to you, you can add another one, if you have different one,
+[25:39] now how much you want another one, you can do it, and then some season settings,
+[25:43] LODs, again, weight, of, this is the mesh index, because if we add, in the mesh, we have the
+[25:49] settings, animation, again, for the wind, and the post, we need something to do with the post
+[25:55] processing, basically, of this thing, and this is the leaf, leaf, basically, and then,
+[26:01] if I hide this, what I can do, I can add on them, I can add a front,
+[26:07] front have some more settings, like geometry, basically, and how much the start, and,
+[26:16] and the roll, fold, curl, and all these settings, lighting, and width, basically,
+[26:23] material can be anything, but it can be two sided flip, and then, mesh, forces, again,
+[26:29] you can use the same forces, segments, how many mesh, segments you need, lighting, similar
+[26:34] settings, material, similar setting to leaf, and post, animation, LODs also, the same,
+[26:39] but mesh, we have, we, if you want to remove, use the segments in there, in the LOD, we can do
+[26:45] it here, but it have different geometry, basically, and it create, there's a leaf mesh on top of the
+[26:53] spline, or branch, anything, and then, I'm going for now, in the geometry, I will
+[27:03] make it less wide, we have,
+[27:17] and this is all, all I have, this generation, common random scene on top, with the thing,
+[27:23] in the shape, on my book, this width,
+[27:38] okay, let's, let's hide this one now, and then, branches, or trunk, I can add decoration,
+[27:46] so you see we have cap, basically, which add this cap on top, right, which if I select the
+[27:56] front, and if I go to skin, in the skin, we used to have cap before, right, spline, then now,
+[28:04] we have this as a load, so in the cap, you can, you can have generation, which will be extent
+[28:11] anything, on the tip, basically, geometry, you can have, you know, basically, angle, scale,
+[28:16] and offset, and slowed, and all the, basically, thickness, height, you know, noise,
+[28:24] and all the good stuff, like displacement, how much you want to displace it, how much you want
+[28:28] to offset it, I call the good stuff, and then displacement settings, material, which you want to
+[28:32] have it on top, and then, segments, LODs, and I think there could be UVs also for this,
+[28:39] to manipulate the UVs, otherwise, the cap is, and then, that's the cap, and that's another,
+[28:47] another decoration, we can have knots, knots is nice, it's something like here, we have it,
+[28:55] knot, it's something like cap, but on top of the tree, rather than that, like if you see,
+[29:00] you know, generation, it should have the same generation settings, the amount of time you need it,
+[29:04] how you want to distribute it, geometry, have, like, something like cap, you know, and then,
+[29:12] UV settings, and other things, which I think could be in the cap also, and then, outer,
+[29:17] and inner part, core, segments, material, and LODs, I think these all settings could be in the
+[29:25] cap as well, and the cap, so that's not, basically, and leave, and if I select and look at
+[29:38] batch leaves, and have almost the same generation, you'll see, there are same,
+[29:45] then there is skin, you know, same settings, forces, orientation, material, lighting,
+[29:52] I think it's like all the same settings as before, nothing new, and if I increase the generation,
+[30:03] and it creates something like this, so yeah, so I'm not sure, if this, and if I turn on this,
+[30:15] and I make it here, almost, I think batch leaves have, like, the absolute thing, but I think
+[30:25] they're both the same for now, we don't need the, we need the fewer of these, we don't need,
+[30:32] and then, if I see, you can add wine, you see, it adds these curves, and like, if I go to
+[30:40] generation, it'll have, like, number, how many you want, you know, each, first, and end, you know,
+[30:48] here, first and last, and the spline, spline setting, all the things we have, forces, shape, skin,
+[31:00] similar to UV, displays, material, and in all the similar things, which we have, and trunk and
+[31:06] segment, hand-drawn, but the only new setting in this is a droop, okay, so we can say off,
+[31:14] so it will just look like the, the normal branches basically, so if it's a droop, then it, you know,
+[31:23] droop down, and it interact with the floor also, so I think like rather than making it another setting,
+[31:29] we can have it part of the branch only, and we can just keep it off in the preset, and then it
+[31:35] just create that, and then when we need it, we turn it on, and then we do, you know, iteration,
+[31:41] friction, and other things, stiffness, you know, that's the only thing, so basically, we don't need
+[31:47] that many nodes, honestly, and just have, all nodes have the same setting, so we can reduce the number
+[31:53] of nodes in there, and then we have a decoration, we have other decoration, like cavity,
+[32:07] cavities, I think the holes in there, so it's mostly, generation is the same, and that says basically,
+[32:14] you know, we can add cracks, basically, in the, in trunk, when I have any places, we need cracks,
+[32:21] so this is nice to have, we can add dynamically cracks in there, and when we have other decoration,
+[32:29] we have decal, decal add that this decal mesh, which can have basically, you know,
+[32:39] look like box, basically, and I think we can assign something, some material to it,
+[32:45] and then it, it, it, it, it, slap it on top, so it act as, that's the only, the decal setting is here,
+[32:53] you know, so this is a little bit setting, the rest of the things are there, like material,
+[32:57] I already post and everything is same, so these are the decal setting, the offset, rotation,
+[33:02] and it, it is snapping the things on top over there, let's add another decoration, we see decal,
+[33:09] you have gash, gash again, it is, I think, horizontal cut, like the slice, it look like that,
+[33:17] only, it's like a cut, so I think we can keep the same, these are the same, decorations,
+[33:23] like cavity and gash are the same, lump is, I think, will be, like knots, but un-lump,
+[33:32] right, most of the things are there, and just only setting is like this, so,
+[33:38] and it's really nice, really adding this, another mesh on top, which is blending really nicely
+[33:47] in the set, so yes, so that's like main important thing, so we can have this lumpiness in there,
+[33:54] but the mesh is basically, it's adding on top, but this could be nice to, you know,
+[34:01] have in there, as a decoration, because trunks have lumps in there, and peeling bark again,
+[34:08] peeling bark is good, so we can have a material added on top, just adding these planes,
+[34:13] which can have this material on top, I think, and then some part will be, you know, added in there,
+[34:25] and it's looked like decar, but it will have, you know, poking edges,
+[34:29] kind of, which look like bark is, bark is peeling, so that's basically good, I'll delete all these
+[34:38] to clean up, and you see, we are like, really nicely able to move, so what is it, it's snapping,
+[34:43] but we are able to move, and now, I think, you know, we, that's basically for the decoration,
+[34:54] I'm also a thing, and there is a root, and if I select trunk, and I say, in the decoration,
+[35:01] I select a root, it add these roots, which are again, are basically the branch,
+[35:07] but with some different settings, so make the, so it's basically a preset kind of thing,
+[35:13] in their target tool level, which is fine, and lastly, if I say, in the decoration is shell,
+[35:21] shell adds another mesh on top in there, so nothing,
+[35:28] really, I think it will help with baking and everything. Now, most important is basically, now,
+[35:34] if you see this photogrammetry, photogrammetry, you can import a mesh, basically, in the mesh,
+[35:39] you can add mesh in there, I can import mesh from here in there, and then that mesh, we can bring
+[35:47] it in here, and from there, we can have basically, mesh converter, we can work, we can have
+[35:56] blend, we can grow the trunk on top, we can have bunch of stuff in there, it's really powerful,
+[36:03] basically, and that we will, you know, explore more, but we need this to have it here, you know,
+[36:12] is weld, material, weld, LOD, and there's generation, generation, same only the mesh is there,
+[36:17] and we say, oh, we can have another stitch, you know, cut stitch, so it adds this, you know,
+[36:26] settings in here, you say this normal generation setting, where you want in here is a setting,
+[36:31] so where you want to cut it, basically, it adds the option for us to cut, and that's really powerful,
+[36:39] setting to have as well. So, example, like we are here, and lastly, we have, like, you know,
+[36:45] node, then you click on each node, and edit it, and you can press W, you know, like,
+[36:52] Guizmo, you can bring, you can edit it also, so like here, you can change each of the thing,
+[36:57] make it taller, shorter, from the Guizmo, you see, it's adding it in the value, but it will keep
+[37:05] original generation value also, and freehand basically help you help us draw, basically more,
+[37:12] so if I say draw, yeah, you can convert it, click in place, and you know, you can do a bunch of
+[37:20] stuff with a freehand drawn, so yeah, so this is basically it, the most important is we need a
+[37:27] trunk, all these properties, same and working, and then we need these meshes, material menu,
+[37:35] and this edit menu, and these, all the edit mesh tools working properly, and some of the
+[37:41] suggestion if we have, so listen to them our guys, and see the video what I'm doing, and make me
+[37:48] this whole thing.

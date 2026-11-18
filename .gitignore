@@ -1,0 +1,26 @@
+# Rust build artifacts
+/app/target/
+**/target/
+*.pdb
+
+# Release packages (published to GitHub Releases, not committed)
+/releases/*.zip
+
+# Dev scratch
+agent-session.jsonl
+app/shots/
+app/mechanics.json
+investigation.cany/
+inbox/
+capture/
+usage.json
+craft.json
+build-activity.log
+build-progress.json
+DIRECTION.md
+
+feed.json
+pinned/
+checks/
+attachments/
+reference/

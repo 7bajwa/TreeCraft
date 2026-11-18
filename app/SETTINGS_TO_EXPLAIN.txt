@@ -1,0 +1,172 @@
+TreeCraft - settings that are shown and saved but don't change the model yet
+============================================================================
+
+Everything else in the Properties panel now changes the tree. The settings below are kept in
+your files (and read from SpeedTree files) but TreeCraft doesn't act on them yet, usually
+because the feature behind them isn't built (forces, UV/textures on bark, physics, growth
+animation, welding, splits, collision, lightmaps).
+
+For each one, please tell me what you see it do in SpeedTree, and I'll build it. The path is
+Tab > Section > Group > Setting as shown in TreeCraft's Properties panel, followed by the
+setting's key in SpeedTree files.
+
+Also not built yet (outside the Properties panel):
+- Node and Freehand editing modes (Generator mode works)
+- Generators: Cap, Fin, Knot, Vine, Zone, Mesh, Mesh converter, Stitch, Base, Reference,
+  Photogrammetry, Decorations (they're left out when a SpeedTree file is opened);
+  Batched leaf loads as an ordinary Leaf
+- Cutout Editor: Straighten, Sections, and picture-traced Generate (it makes a leaf outline)
+- Forces, collision objects, projectors, masks, hand-drawn guides (the five counters under
+  the generation graph)
+- Parent curves for more than one parent level (only the direct parent's curve is used)
+- Variance "Cohesion" (Uniform and Gaussian work)
+- Wind wizard (TreeCraft has a simple preview wind), export formats other than OBJ
+
+Settings whose exact behaviour I estimated from the manual (they work, but please check them
+against SpeedTree): Start roll, Ancestor, Parent Curl, Zigzag, Path, Jink, Early noise
+Threshold, Bifurcation placement, Classic mode spacing, Flood/Parent "+ Relative", segment
+counts (Length/Radial "+ Relative" units), displacement and flare strengths, leaf Fold/Curl/
+Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, Dynamic LOD.
+
+=== Tree node ===
+- Tree > Shape > Unify child orientations    [Shape:Unify child orientations]
+- Tree > Geometry > Branches/Caps    [Geometry:Branches/Caps]
+- Tree > Geometry > Leaves/Fronds/Meshes    [Geometry:Leaves/Fronds/Meshes]
+- Tree > SpeedTree SDK > User data    [SpeedTree SDK:User data]
+- Tree > Vertex Color > Vertex colors    [Compute Flags:Vertex colors]
+
+=== Branch generator ===
+- Gen > Generation > Classic > Orientation > Alignment    [Generation:Orientation:Alignment]
+- Gen > Generation > Proportional > Favor splits    [Generation:Proportional:Favor splits]
+- Gen > Generation > Absolute > Favor splits    [Generation:Absolute:Favor splits]
+- Gen > Generation > Bifurcation > Locality    [Generation:Bifurcation:Locality]
+- Gen > Generation > Bifurcation > Align    [Generation:Bifurcation:Align]
+- Gen > Generation > Bifurcation > Act    [Generation:Bifurcation:Act]
+- Gen > Generation > Common > Active    [Generation:Shared:Active]
+- Gen > Generation > Common > Pass    [Generation:Shared:Pass]
+- Gen > Generation > Knockout > Knockout    [Generation:Knockout]
+- Gen > Generation > More > Click place    [Generation:Shared:Click place]
+- Gen > Generation > More > Mesh alignment    [Generation:Shared:Mesh alignment]
+- Spine > Spine > Length > Match one v tile    [Spine:Length:Match one v tile]
+- Spine > Spine > Length > Stop shape control    [Spine:Length:Stop shape control]
+- Spine > Spine > Length > Shape scale    [Spine:Length:Shape scale]
+- Forces > Forces > Allow forces    [Forces:Allow forces]
+- Forces > Forces > Align > Style    [Forces:Align:Style]
+- Forces > Forces > Align > Amount    [Forces:Align:Amount]
+- Shape > Shape Control > Style    [Shape Control:Style]
+- Shape > Shape Control > Position    [Shape Control:Position]
+- Shape > Shape Control > Distribution style    [Shape Control:Distribution style]
+- Shape > Shape Control > Distribution    [Shape Control:Distribution]
+- Shape > Shape Control > Size > Absolute    [Shape Control:Size:Absolute]
+- Shape > Shape Control > Size > + % of size    [Shape Control:Size:+ % of size]
+- Skin > Skin > Radius > Clamp > Smooth    [Skin:Smooth]
+- Skin > Skin > Welding > Enabled    [Skin:Welding:Enabled]
+- Skin > Skin > Welding > Keep failed    [Skin:Welding:Keep failed]
+- Skin > Skin > Welding > Force ray casts    [Skin:Welding:Force ray casts]
+- Skin > Skin > Welding > Offset    [Skin:Welding:Offset]
+- Skin > Skin > Welding > Spread > Amount    [Skin:Welding:Spread:Amount]
+- Skin > Skin > Welding > Spread > Upper scale    [Skin:Welding:Spread:Upper scale]
+- Skin > Skin > Welding > Spread > Lower scale    [Skin:Welding:Spread:Lower scale]
+- Skin > Skin > Welding > Blend > Texture    [Skin:Welding:Blend:Texture]
+- Skin > Skin > Welding > Blend > Texture scale    [Skin:Welding:Blend:Texture scale]
+- Skin > Skin > Welding > Blend > Contrast    [Skin:Welding:Blend:Contrast]
+- Skin > Skin > Welding > Blend > Noise    [Skin:Welding:Blend:Noise]
+- Skin > Skin > Subdivision > Relax scale    [Skin:Subdivision:Relax scale]
+- Skin > Skin > Subdivision > Smooth    [Skin:Subdivision:Smooth]
+- Skin > Skin > Subdivision > Texture density    [Skin:Subdivision:Texture density]
+- Skin > Skin > Subdivision > Upper spread    [Skin:Subdivision:Upper spread]
+- Skin > Skin > Subdivision > Lower spread    [Skin:Subdivision:Lower spread]
+- Skin > Skin > Splits > Chance    [Skin:Splits:Chance]
+- Skin > Skin > Splits > Balance    [Skin:Splits:Balance]
+- Skin > Skin > Splits > Seed    [Skin:Splits:Seed]
+- Skin > Extensions > Spine > Spread    [Extensions:Spine:Spread]
+- Skin > Extensions > Skin > Radius    [Extensions:Skin:Radius]
+- Skin > Extensions > Skin > Normal smooth    [Extensions:Skin:Normal smooth]
+- Skin > Extensions > Skin > Displacement scale    [Extensions:Skin:Displacement scale]
+- UV > UV Mapping > Style    [UV Mapping:Style]
+- UV > UV Mapping > U > Absolute    [UV Mapping:U:Absolute]
+- UV > UV Mapping > U > + Relative    [UV Mapping:U:+ Relative]
+- UV > UV Mapping > U > Offset    [UV Mapping:U:Offset]
+- UV > UV Mapping > V > Style    [UV Mapping:V:Style]
+- UV > UV Mapping > V > Anchor    [UV Mapping:V:Anchor]
+- UV > UV Mapping > V > Scale    [UV Mapping:V:Scale]
+- UV > UV Mapping > V > Skew correction    [UV Mapping:V:Skew correction]
+- UV > UV Mapping > V > Pinch    [UV Mapping:V:Pinch]
+- UV > UV Mapping > V > Offset    [UV Mapping:V:Offset]
+- UV > UV Mapping > Tiling > Style    [UV Mapping:Tiling:Style]
+- UV > UV Mapping > Tiling > Optimize segments    [UV Mapping:Tiling:Optimize segments]
+- UV > UV Mapping > Tiling > V tolerance    [UV Mapping:Tiling:V tolerance]
+- Material > Materials > Branch > Weight    [Materials:Branch:0:Weight]
+- Material > Materials > Extension > Material    [Materials:Extension:Material]
+- Material > Season > Start offset    [Season:Start offset]
+- Material > Season > Time scale    [Season:Time scale]
+- Material > Season > Descendant offset    [Season:Descendant offset]
+- Material > Lightmap > Weight    [Lightmap:Weight]
+- Animation > Wind > Legacy UE4/Unity > Apply    [Wind:Legacy:Apply]
+- Animation > Growth > Speed scale    [Growth:Speed scale]
+- Animation > Growth > Radius style    [Growth:Radius style]
+- Animation > Growth > Smoothing    [Growth:Smoothing]
+- Animation > Growth > Unfurl    [Growth:Unfurl]
+- Animation > Growth > Allow extension control    [Growth:Allow extension control]
+- Animation > Growth > Timing > Style    [Growth:Timing:Style]
+- Animation > Growth > Timing > Start %    [Growth:Timing:Start %]
+- Animation > Growth > Timing > Offset    [Growth:Timing:Offset]
+- Segments > Segments > Length > Style    [Segments:Length:Style]
+- Segments > Segments > Length > Weld scalar    [Segments:Length:Weld scalar]
+- Segments > Segments > Features > Mesh > Enabled    [Segments:Features:Mesh:Enabled]
+- Segments > Segments > Features > Mesh > Keep chance    [Segments:Features:Mesh:Keep chance]
+- LOD > Dynamic LOD > Optimization    [Dynamic LOD:Optimization]
+- Physics > Physics > Bone style    [Physics:Bone style]
+- Physics > Physics > Bones    [Physics:Bones]
+- Physics > Physics > Radius scalar    [Physics:Radius scalar]
+- Physics > Physics > Length scalar    [Physics:Length scalar]
+- Physics > Physics > Density    [Physics:Density]
+- Physics > Physics > Breakable chance    [Physics:Breakable chance]
+- Hand Drawn > Hand Drawn > New > Control point style    [Hand Drawn:New:Control point style]
+- Hand Drawn > Hand Drawn > New > Curve fit    [Hand Drawn:New:Curve fit]
+- Hand Drawn > Hand Drawn > Resample > Control point style    [Hand Drawn:Resample:Control point style]
+- Hand Drawn > Hand Drawn > Resample > Curve fit scalar    [Hand Drawn:Resample:Curve fit scalar]
+
+=== Leaf generator ===
+- Gen > Generation > Classic > Orientation > Alignment    [Generation:Orientation:Alignment]
+- Gen > Generation > Proportional > Favor splits    [Generation:Proportional:Favor splits]
+- Gen > Generation > Absolute > Favor splits    [Generation:Absolute:Favor splits]
+- Gen > Generation > Bifurcation > Locality    [Generation:Bifurcation:Locality]
+- Gen > Generation > Bifurcation > Align    [Generation:Bifurcation:Align]
+- Gen > Generation > Bifurcation > Act    [Generation:Bifurcation:Act]
+- Gen > Generation > Common > Active    [Generation:Shared:Active]
+- Gen > Generation > Common > Pass    [Generation:Shared:Pass]
+- Gen > Generation > Knockout > Knockout    [Generation:Knockout]
+- Gen > Generation > More > Click place    [Generation:Shared:Click place]
+- Gen > Generation > More > Mesh alignment    [Generation:Shared:Mesh alignment]
+- Leaves > Leaves > Use actual size    [Leaves:Use actual size]
+- Leaves > Leaves > Keep failed welds    [Leaves:Keep failed welds]
+- Leaves > Leaves > Fix winding    [Leaves:Fix winding]
+- Leaves > Leaves > Type > Weight    [Leaves:Type:0:Weight]
+- Leaves > Sensitivity > Parent > Amount    [Sensitivity:Parent:Amount]
+- Leaves > Lighting > Style    [Lighting:Style]
+- Leaves > Lighting > Smooth    [Lighting:Smooth]
+- Forces > Forces > Allow forces    [Forces:Allow forces]
+- Forces > Forces > Align > Style    [Forces:Align:Style]
+- Forces > Forces > Align > Amount    [Forces:Align:Amount]
+- Animation > Wind > Cross    [Wind:Cross]
+- Animation > Wind > Lock to parent    [Wind:Lock to parent]
+- LOD > Collision > Style    [Collision:Style]
+- LOD > Collision > Weight    [Collision:Weight]
+
+=== Frond generator ===
+- Gen > Generation > Classic > Orientation > Alignment    [Generation:Orientation:Alignment]
+- Gen > Generation > Proportional > Favor splits    [Generation:Proportional:Favor splits]
+- Gen > Generation > Absolute > Favor splits    [Generation:Absolute:Favor splits]
+- Gen > Generation > Bifurcation > Locality    [Generation:Bifurcation:Locality]
+- Gen > Generation > Bifurcation > Align    [Generation:Bifurcation:Align]
+- Gen > Generation > Bifurcation > Act    [Generation:Bifurcation:Act]
+- Gen > Generation > Common > Active    [Generation:Shared:Active]
+- Gen > Generation > Common > Pass    [Generation:Shared:Pass]
+- Gen > Generation > Knockout > Knockout    [Generation:Knockout]
+- Gen > Generation > More > Click place    [Generation:Shared:Click place]
+- Gen > Generation > More > Mesh alignment    [Generation:Shared:Mesh alignment]
+- Frond > Shape > Unification    [Shape:Unification]
+- Forces > Forces > Allow forces    [Forces:Allow forces]
+- Forces > Forces > Align > Style    [Forces:Align:Style]
+- Forces > Forces > Align > Amount    [Forces:Align:Amount]

@@ -1,0 +1,29 @@
+TreeCraft - settings that are shown and saved but don't change the model yet
+============================================================================
+
+Everything else in the Properties panel now changes the tree. The settings below are kept in
+your files (and read from SpeedTree files) but TreeCraft doesn't act on them yet, usually
+because the feature behind them isn't built (forces, UV/textures on bark, physics, growth
+animation, welding, splits, collision, lightmaps).
+
+For each one, please tell me what you see it do in SpeedTree, and I'll build it. The path is
+Tab > Section > Group > Setting as shown in TreeCraft's Properties panel, followed by the
+setting's key in SpeedTree files.
+
+Also not built yet (outside the Properties panel):
+- Node and Freehand editing modes (Generator mode works)
+- Generators: Cap, Fin, Knot, Vine, Zone, Mesh, Mesh converter, Stitch, Base, Reference,
+  Photogrammetry, Decorations (they're left out when a SpeedTree file is opened);
+  Batched leaf loads as an ordinary Leaf
+- Cutout Editor: Straighten, Sections, and picture-traced Generate (it makes a leaf outline)
+- Forces, collision objects, projectors, masks, hand-drawn guides (the five counters under
+  the generation graph)
+- Parent curves for more than one parent level (only the direct parent's curve is used)
+- Variance "Cohesion" (Uniform and Gaussian work)
+- Wind wizard (TreeCraft has a simple preview wind), export formats other than OBJ
+
+Settings whose exact behaviour I estimated from the manual (they work, but please check them
+against SpeedTree): Start roll, Ancestor, Parent Curl, Zigzag, Path, Jink, Early noise
+Threshold, Bifurcation placement, Classic mode spacing, Flood/Parent "+ Relative", segment
+counts (Length/Radial "+ Relative" units), displacement and flare strengths, leaf Fold/Curl/
+Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, Dynamic LOD.

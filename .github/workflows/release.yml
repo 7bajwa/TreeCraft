@@ -1,0 +1,45 @@
+name: Release
+
+# Build a Windows binary and attach it to a GitHub Release when a v* tag is pushed.
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app
+
+      - name: Build (release)
+        run: cargo build --release --manifest-path app/Cargo.toml
+
+      - name: Package
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts/build-release.ps1
+
+      - name: Upload to release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: releases/*.zip
+          generate_release_notes: true
+
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: treecraft-windows
+          path: releases/*.zip
