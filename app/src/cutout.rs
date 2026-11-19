@@ -1,4 +1,4 @@
-//! Cutout mesh geometry, as the original's Cutout Editor describes it: points on the material are
+//! Cutout mesh geometry, as the Cutout Editor describes it: points on the material are
 //! joined into triangles automatically (Delaunay), masked triangles are dropped, optional
 //! tessellation adds triangles, and Generate makes a fresh point set.
 
@@ -92,13 +92,13 @@ fn subdivide(pts: &mut Vec<P>, tris: Vec<[usize; 3]>, times: usize) -> Vec<[usiz
 }
 
 /// Rotate a point by the mesh angle around the pivot.
-pub fn rotate(m: &MeshAsset, p: P) -> P {
-    if m.angle == 0.0 {
+pub fn rotate(angle: f32, pivot: P, p: P) -> P {
+    if angle == 0.0 {
         return p;
     }
-    let (s, c) = m.angle.to_radians().sin_cos();
-    let (x, y) = (p[0] - m.pivot[0], p[1] - m.pivot[1]);
-    [m.pivot[0] + x * c - y * s, m.pivot[1] + x * s + y * c]
+    let (s, c) = angle.to_radians().sin_cos();
+    let (x, y) = (p[0] - pivot[0], p[1] - pivot[1]);
+    [pivot[0] + x * c - y * s, pivot[1] + x * s + y * c]
 }
 
 /// The finished mesh for one LOD: points (rotated by Angle), triangles, and whether each
@@ -108,14 +108,15 @@ pub fn build(m: &MeshAsset, lod: usize) -> (Vec<P>, Vec<[usize; 3]>) {
     if pts.len() < 3 {
         pts = MeshAsset::leaf_card().lods[0].clone();
     }
+    let cfg = m.cfg(lod);
     let mut tris = delaunay(&pts);
     // Snap threshold: drop slivers thinner than this share of their longest edge.
-    if m.snap > 0.0 {
+    if cfg.snap > 0.0 {
         tris.retain(|t| {
             let (a, b, c) = (pts[t[0]], pts[t[1]], pts[t[2]]);
             let area2 = ((b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])).abs();
             let longest = [(a, b), (b, c), (c, a)].iter().map(|(p, q)| (p[0] - q[0]).hypot(p[1] - q[1])).fold(0.0f32, f32::max);
-            area2 / (longest * longest).max(1e-9) > m.snap * 0.2
+            area2 / (longest * longest).max(1e-9) > cfg.snap * 0.2
         });
     }
     let mask = &m.mask[lod.min(2)];
@@ -123,14 +124,14 @@ pub fn build(m: &MeshAsset, lod: usize) -> (Vec<P>, Vec<[usize; 3]>) {
         let c = [(pts[t[0]][0] + pts[t[1]][0] + pts[t[2]][0]) / 3.0, (pts[t[0]][1] + pts[t[1]][1] + pts[t[2]][1]) / 3.0];
         !masked(mask, c)
     });
-    let times = (m.tess_amount * 3.0).round() as usize + if m.tess_style == 1 && m.tess_amount > 0.0 { 1 } else { 0 };
+    let times = (cfg.tess_amount * 3.0).round() as usize + if cfg.tess_style == 1 && cfg.tess_amount > 0.0 { 1 } else { 0 };
     if times > 0 {
         tris = subdivide(&mut pts, tris, times.min(4));
     }
-    if m.refine > 0.0 {
-        tris = refine_edges(&mut pts, tris, m.refine);
+    if cfg.refine > 0.0 {
+        tris = refine_edges(&mut pts, tris, cfg.refine);
     }
-    let pts: Vec<P> = pts.iter().map(|&p| rotate(m, p)).collect();
+    let pts: Vec<P> = pts.iter().map(|&p| rotate(cfg.angle, cfg.pivot, p)).collect();
     (pts, tris)
 }
 
@@ -182,7 +183,7 @@ pub fn span_at(pts: &[P], tris: &[[usize; 3]], y: f32) -> Option<(f32, f32)> {
     (lo <= hi).then_some((lo, hi))
 }
 
-/// Generate a fresh point set (the original's Generate menu). Without a texture to trace, the
+/// Generate a fresh point set (the Generate menu). Without a texture to trace, the
 /// outline is a leaf shape: `style` 0 = slices with a centre line, 1 = slices, 2 = adaptive edge.
 pub fn generate(style: usize, density: usize) -> Vec<P> {
     let n = density.clamp(4, 200);
@@ -212,6 +213,110 @@ pub fn generate(style: usize, density: usize) -> Vec<P> {
     pts
 }
 
+/// Trace a cutout from a picture's opacity (`alpha` row-major, y down, `w`×`h`): about `density`
+/// points along the edge of the opaque area plus a few inside, and mask spots on the triangles
+/// that would cover see-through parts. None when nothing is opaque.
+pub fn from_alpha(alpha: &[u8], w: usize, h: usize, density: usize) -> Option<(Vec<P>, Vec<[f32; 3]>)> {
+    const G: usize = 64;
+    if w == 0 || h == 0 || alpha.len() < w * h {
+        return None;
+    }
+    let cell = |g: usize, n: usize| (g * n / G, ((g + 1) * n / G).max(g * n / G + 1).min(n));
+    let grid: Vec<bool> = (0..G * G)
+        .map(|i| {
+            let ((x0, x1), (y0, y1)) = (cell(i % G, w), cell(i / G, h));
+            (y0..y1).any(|y| (x0..x1).any(|x| alpha[y * w + x] >= 128))
+        })
+        .collect();
+    let solid = |x: isize, y: isize| x >= 0 && y >= 0 && (x as usize) < G && (y as usize) < G && grid[y as usize * G + x as usize];
+    let card = |x: f32, y: f32| -> P { [(x / G as f32).clamp(0.0, 1.0), (1.0 - y / G as f32).clamp(0.0, 1.0)] };
+    let (mut edge, mut inner) = (vec![], vec![]);
+    for gy in 0..G as isize {
+        for gx in 0..G as isize {
+            if !solid(gx, gy) {
+                continue;
+            }
+            // Edge cells move half a cell toward their see-through neighbours.
+            let (mut ox, mut oy) = (0.0, 0.0);
+            for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
+                if !solid(gx + dx, gy + dy) {
+                    ox += dx as f32 * 0.5;
+                    oy += dy as f32 * 0.5;
+                }
+            }
+            let q = card(gx as f32 + 0.5 + ox, gy as f32 + 0.5 + oy);
+            if ox != 0.0 || oy != 0.0 { edge.push(q) } else { inner.push(q) }
+        }
+    }
+    if edge.is_empty() {
+        return None;
+    }
+    let d2 = |a: P, b: P| (a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2);
+    // Farthest-point picks spread the points evenly, starting at the stem (lowest point).
+    let spread = |cands: &[P], chosen: &mut Vec<P>, n: usize, min_d2: f32| {
+        let mut best: Vec<f32> = cands.iter().map(|&c| chosen.iter().map(|&q| d2(c, q)).fold(f32::MAX, f32::min)).collect();
+        for _ in 0..n {
+            let Some((i, &d)) = best.iter().enumerate().max_by(|a, b| a.1.total_cmp(b.1)) else { break };
+            if d < min_d2 {
+                break;
+            }
+            let c = cands[i];
+            chosen.push(c);
+            for (b, &q) in best.iter_mut().zip(cands) {
+                *b = b.min(d2(q, c));
+            }
+        }
+    };
+    let n = density.clamp(4, 200);
+    let start = *edge.iter().min_by(|a, b| a[1].total_cmp(&b[1])).unwrap();
+    let mut pts = vec![start];
+    spread(&edge, &mut pts, n - 1, 0.0);
+    let gap = pts.windows(2).map(|w| d2(w[0], w[1]).sqrt()).fold(0.0f32, f32::max).max(0.05);
+    spread(&inner, &mut pts, n / 3, (gap * 0.8).powi(2));
+    let mask = delaunay(&pts)
+        .iter()
+        .map(|t| [(pts[t[0]][0] + pts[t[1]][0] + pts[t[2]][0]) / 3.0, (pts[t[0]][1] + pts[t[1]][1] + pts[t[2]][1]) / 3.0])
+        .filter(|c| !solid((c[0] * G as f32) as isize, ((1.0 - c[1]) * G as f32) as isize))
+        .map(|c| [c[0], c[1], 0.004])
+        .collect();
+    Some((pts, mask))
+}
+
+/// A point of the mesh (card points measured from the pivot, z = 0 on the card) in the leaf's
+/// own frame (x side, y growth, z out of the card), following the mesh's Orient, Flip and
+/// Growth settings. Orient names the axes it was drawn in: Y-Up RH is the card standing up;
+/// Z-Up lays it flat; left-handed mirrors depth.
+pub fn axes(orient: usize, flip: usize, growth: usize, p: [f32; 3]) -> [f32; 3] {
+    let [mut x, mut y, mut z] = p;
+    match flip {
+        1 => x = -x,
+        2 => y = -y,
+        3 => z = -z,
+        _ => {}
+    }
+    let (x, y, z) = match orient {
+        0 => (x, z, -y),
+        2 => (x, y, -z),
+        3 => (x, z, y),
+        _ => (x, y, z),
+    };
+    // The axis the leaf was drawn growing along is turned to +Y.
+    let (x, y, z) = match growth {
+        1 => (-y, x, z),
+        2 => (y, -x, z),
+        3 => (x, z, -y),
+        4 => (x, -z, y),
+        _ => (x, y, z),
+    };
+    [x, y, z]
+}
+
+/// Which way the card's front faces in the leaf's frame (Flip normals turns it around).
+pub fn front(orient: usize, flip: usize, growth: usize, flip_normals: bool) -> [f32; 3] {
+    let n = axes(orient, flip, growth, [0.0, 0.0, 1.0]);
+    if flip_normals { n.map(|v| -v) } else { n }
+}
+
 /// Mirror: make the left side match the right (points near the middle snap to it).
 pub fn mirror(pts: &[P]) -> Vec<P> {
     let mut out: Vec<P> = vec![];
@@ -229,6 +334,34 @@ pub fn mirror(pts: &[P]) -> Vec<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn axes_follow_flip_and_growth() {
+        assert_eq!(axes(1, 0, 0, [0.2, 1.0, 0.0]), [0.2, 1.0, 0.0], "Y-Up RH keeps the card standing");
+        assert_eq!(axes(1, 1, 0, [0.2, 1.0, 0.0]), [-0.2, 1.0, 0.0], "Flip -X mirrors the card");
+        assert_eq!(axes(1, 0, 1, [1.0, 0.0, 0.0]), [-0.0, 1.0, 0.0], "a leaf drawn growing along +X is turned upright");
+        assert_eq!(axes(0, 0, 0, [0.0, 1.0, 0.0]), [0.0, 0.0, -1.0], "Z-Up lays the card flat");
+        assert_eq!(front(1, 0, 0, false), [0.0, 0.0, 1.0]);
+        assert_eq!(front(1, 0, 0, true), [-0.0, -0.0, -1.0], "Flip normals turns the front around");
+    }
+
+    #[test]
+    fn traces_opacity_and_masks_holes() {
+        // A ring: opaque between radius 0.2 and 0.45 of a 128-pixel picture.
+        let n = 128;
+        let alpha: Vec<u8> = (0..n * n)
+            .map(|i| {
+                let (x, y) = ((i % n) as f32 / n as f32 - 0.5, (i / n) as f32 / n as f32 - 0.5);
+                let r = x.hypot(y);
+                if (0.2..0.45).contains(&r) { 255 } else { 0 }
+            })
+            .collect();
+        let (pts, mask) = from_alpha(&alpha, n, n, 24).unwrap();
+        assert!(pts.len() >= 24);
+        assert!(pts.iter().all(|p| (p[0] - 0.5).hypot(p[1] - 0.5) < 0.5), "points stay on the picture");
+        assert!(!mask.is_empty(), "the hole gets masked");
+        assert!(from_alpha(&vec![0; n * n], n, n, 24).is_none());
+    }
+
     #[test]
     fn square_makes_two_triangles_and_mask_removes() {
         let pts = vec![[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];

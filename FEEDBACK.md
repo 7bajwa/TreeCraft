@@ -1,13 +1,13 @@
-# TreeCraft — full direction doc (look like SpeedTree, work like SpeedTree, then better)
+# TreeCraft — full direction doc (look like the reference, work like the reference, then better)
 
-Goal: TreeCraft should **look and feel like SpeedTree Modeler v10** and **work like it**, then pull
+Goal: TreeCraft should **look and feel like the reference modeler** and **work like it**, then pull
 ahead with the improvements below. This doc is the single source of truth for the overhaul. It is
-written against the current Rust/egui source (`app/src/*.rs`), the SpeedTree v10 behaviour captured in
+written against the current Rust/egui source (`app/src/*.rs`), the reference behaviour captured in
 `app/MECHANICS.md`, and a live run of the tool (screenshots reviewed 2026-11-13).
 
-Work top to bottom. Each item: **Now / SpeedTree / Do** with the file:line to touch. Build + screenshot
+Work top to bottom. Each item: **Now / the reference / Do** with the file:line to touch. Build + screenshot
 after every change (workflow at the end). Mark approximations with `estimated` / `shortcut:` comments
-the way `MECHANICS.md` already does, so the gap to real SpeedTree stays visible.
+the way `MECHANICS.md` already does, so the gap to the reference stays visible.
 
 ---
 
@@ -15,11 +15,11 @@ the way `MECHANICS.md` already does, so the gap to real SpeedTree stays visible.
 
 What already works and looks right — **do not regress these**:
 - Three-column layout (Generation+Properties | Tree window+ribbon | Materials/Meshes+Output) matches
-  SpeedTree's shape. Dark theme, accent blue, rounded docks — close to the original.
+  the reference's shape. Dark theme, accent blue, rounded docks — close to the original.
 - Properties panel already has the **Blender-style vertical icon rail** (`props.rs:398-426`),
   drag-fill number fields with **right-click reset** (`props.rs:49-118`), variance ± buttons, and
   green/blue curve swatches. Good foundation.
-- Cutout (Edit Mesh) editor is genuinely close to SpeedTree: point/anchor/mask/color tools, LOD
+- Cutout (Edit Mesh) editor is genuinely close to the reference: point/anchor/mask/color tools, LOD
   thumbnails, undo (`panels.rs:774-1217`).
 - Material editor: preview sphere, 12 map slots, variations, atlas, sets scaffolding.
 - Generation modes, spine shaping, leaves, fronds, wind, season, LOD all implemented from the decoded
@@ -42,7 +42,7 @@ Confirmed problems from the screenshots:
 
 ## B. Look & feel target
 
-Match SpeedTree's visual language, then refine:
+Match the reference's visual language, then refine:
 - **Icons everywhere**: node-graph nodes, property tabs, property sub-sections, toolbar buttons use a
   single crisp vector icon set (not emoji). One stroke weight, one corner radius, theme-tinted.
 - **Node editor like a modern node graph**: rounded nodes with an icon + title, curved wires, free
@@ -55,7 +55,7 @@ Match SpeedTree's visual language, then refine:
   align down the panel (already mostly true in `props.rs`).
 
 Keep the current dark palette (`app.rs:36-55`) and the Grove green alt theme. Add an optional
-**light theme** later to fully match SpeedTree's light skin, but dark is the default.
+**light theme** later to fully match the reference's light skin, but dark is the default.
 
 ---
 
@@ -101,7 +101,7 @@ branch in `gen.rs` near the per-generator dispatch (`gen.rs:506`).
   angle (bark scale / peeling skin). Double-sided.
 
 ### D3. Zone — `Kind::Zone`
-A region that scatters children inside it (SpeedTree pairs it with Flood mode, already in `Mode`,
+A region that scatters children inside it (the reference pairs it with Flood mode, already in `Mode`,
 `model.rs:55`). Zone carries `Shape:Radius`; its children default to Flood placement in that volume.
 
 ### D4. Photogrammetry — `Kind::Photogrammetry` (+ Add submenu)
@@ -325,7 +325,7 @@ Grouped and prioritised. `[x]` done, `[~]` in progress, `[ ]` to do. Read the v1
 - [x] Right-click context menu added (`app.rs tree_window`): Add geometry to selected, Add force /
   collision / camera / projector / mesh helper (stubbed), Select▸, Cut/Copy/Paste/Duplicate/Delete,
   Render mode▸, Visibility▸, Zoom, Window▸. (Scene-object adds still need real implementations — Q5.)
-- [ ] (superseded) Replace the right-drag-rotate (rotate is already on left-drag) with the SpeedTree context menu:
+- [ ] (superseded) Replace the right-drag-rotate (rotate is already on left-drag) with the reference context menu:
   Add geometry to selected, Add force, Add collision object, Add scene camera, Add projector, Add mesh
   helper, Select▸, Cut/Copy/Paste/Duplicate, Show▸, Render mode▸, Zoom▸, Visibility▸, Manipulator▸,
   Window▸.
@@ -358,6 +358,15 @@ Grouped and prioritised. `[x]` done, `[~]` in progress, `[ ]` to do. Read the v1
   (wasm via trunk — eframe supports it). A `releases/` folder with versioned builds; bump version each
   milestone.
 
+### Q8b. Build / release — Windows DONE
+- [x] `.gitignore` (purge target/ + scratch), README, `scripts/build-release.ps1`,
+  `.github/workflows/release.yml`. Clean history (orphan squash — the initial commit had a 193MB
+  `.pdb` that exceeded GitHub's 100MB limit). **Released v0.3.0 (Windows):**
+  https://github.com/7bajwa/TreeCraft/releases/tag/v0.3.0
+- [ ] Android (cargo-apk/NDK) and web (wasm/trunk) builds — later.
+- Note: local git is on branch `newroot` tracking `origin/main`; a stale local `main` with the old
+  junk history remains (local-only, harmless) — delete it when convenient.
+
 ### Working order
 Q1 bugs → Q2 dialogs → Q6 properties → Q7 cutout → Q4/Q5 menus+scene objects → Q3 export → Q8 UV/build.
 Small tasks, build+screenshot each, never degrade working features.
@@ -389,7 +398,7 @@ Small tasks, build+screenshot each, never degrade working features.
   a base kind's settings tabs (spec.rs) and skinning path (gen.rs). Per-kind colours, graph icons
   (`app.rs node_icon`), prop-tab indexing via spec_base. Add menu reorganised: Branch▸/Trunk▸/Leaf▸ with
   presets, Frond, Zone, Decoration▸ (Decal/Knot/Cap/Cut/Flake/Vine), Photogrammetry▸ (+ installed
-  templates), SpeedTree templates▸, From file. Added `--add <Kind>` test hook. Zone is an invisible
+  templates), the reference templates▸, From file. Added `--add <Kind>` test hook. Zone is an invisible
   child-holder (Skin:Type 3). Builds, 14 tests pass, Knot verified rendering + selectable.
   **TODO (geometry, estimated):** Decal flat surface card, Knot/Cap knob+tip meshes, Cut cavity,
   Flake lift, Zone volume scatter (Flood), Photogrammetry mesh load — all currently skin as their

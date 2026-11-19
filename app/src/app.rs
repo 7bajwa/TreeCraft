@@ -1,17 +1,19 @@
 use crate::curve::{self, Curve};
 use crate::gen::{self, TreeMesh};
 use crate::math::v3;
-use crate::model::{self, Doc, Gen, Kind, Mode};
+use crate::model::{self, Doc, Gen, Kind, Mode, ObjKind, SceneObj};
 use crate::panels::{self, EditorState, Pics};
 use crate::props::{self, PropState};
 use crate::render::{self, Camera, Shading};
 use crate::spm;
 use eframe::egui::{self, Color32, CornerRadius, Pos2, Rect, RichText, Sense, Stroke, Vec2};
+use std::collections::{BTreeMap, HashMap};
+use crate::math::V3;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-pub const VERSION: &str = "0.3.0";
+pub const VERSION: &str = "0.4.0";
 
 /// Saved preferences (written to LOCALAPPDATA/TreeCraft/prefs.json).
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -31,7 +33,8 @@ struct Prefs {
     gizmo: bool,
     ortho: bool,
     start_on_launch: bool,
-    install: Option<String>,
+    /// A library folder chosen in Preferences (startup files and samples).
+    library: Option<String>,
     recent: Vec<String>,
 }
 
@@ -44,7 +47,7 @@ impl Default for Prefs {
             graph_stats: false,
             graph_names: 1,
             graph_vertical: true,
-            wind_on: true,
+            wind_on: false,
             ground: true,
             grid: true,
             shadow: true,
@@ -52,7 +55,7 @@ impl Default for Prefs {
             gizmo: true,
             ortho: false,
             start_on_launch: true,
-            install: None,
+            library: None,
             recent: vec![],
         }
     }
@@ -99,7 +102,7 @@ struct Palette {
 
 fn palette(t: Theme) -> Palette {
     match t {
-        // Blender's dark theme colours on the original's layout.
+        // Blender's dark theme colours on the layout.
         Theme::Blender => Palette {
             gap: Color32::from_rgb(0x16, 0x16, 0x16),
             region: Color32::from_rgb(0x2b, 0x2b, 0x2b),
@@ -223,6 +226,25 @@ pub struct TreeCraft {
     graph_zoom: f32,
     graph_pan: Vec2,
     graph_drag: Option<u32>,
+    /// Instance mode: the picked branch instance.
+    sel_inst: Option<u64>,
+    /// Instance mode gizmo: Q properties, W move, E rotate, R scale.
+    inst_gizmo: char,
+    /// A gizmo drag in progress: handle and the instance edit when it started.
+    gizmo_drag: Option<(usize, model::InstEdit)>,
+    /// Hand Draw tool and the stroke being drawn.
+    hand_tool: usize,
+    stroke: Vec<[f32; 3]>,
+    /// Hand Draw: a spline point being dragged (spline, point).
+    hand_drag: Option<(usize, usize)>,
+    /// Hand Draw: the picked drawn spline of the selected generator.
+    hand_sel: Option<usize>,
+    /// Collision objects shown in the viewport (the Collision button).
+    show_collision: bool,
+    /// Where the person dragged each graph node, from its tidy-layout place (graph units).
+    graph_offset: HashMap<u32, Vec2>,
+    /// Output dock tab: 0 Output, 1 UV.
+    out_tab: usize,
     editors: EditorState,
     pics: Pics,
     curve_edit: Option<CurveEdit>,
@@ -238,7 +260,8 @@ pub struct TreeCraft {
     recent: Vec<PathBuf>,
     ui_scale: f32,
     theme: Theme,
-    install: Option<PathBuf>,
+    /// TreeCraft's library: startup/ (File > New) and samples/ (Browse samples).
+    library: PathBuf,
     start: Instant,
     gen_ms: f32,
     draw_ms: f32,
@@ -251,13 +274,10 @@ impl TreeCraft {
     pub fn new(cc: &eframe::CreationContext<'_>, shot: Option<PathBuf>, start: &str) -> Self {
         let prefs = load_prefs();
         apply_theme(&cc.egui_ctx, Theme::Blender);
-        let doc = model::template(start);
-        let install = prefs.install.as_ref().map(PathBuf::from).filter(|d| d.join("tree_templates").is_dir()).or_else(spm::install_dir);
-        let mut log = vec![format!("TreeCraft Modeler {VERSION}"), "A procedural tree modeler.".into(), String::new(), "Renderer: built-in software renderer".into()];
-        if let Some(d) = &install {
-            log.push(format!("SpeedTree templates found in {}", d.display()));
-        }
-        log.extend([String::new(), format!("Started from the {start} template."), "Ready.".into()]);
+        let library = prefs.library.as_ref().map(PathBuf::from).filter(|d| d.is_dir()).unwrap_or_else(default_library);
+        seed_library(&library);
+        let doc = read_tcraft(&library.join("startup").join(format!("{start}.tcraft"))).unwrap_or_else(|_| model::template(start));
+        let log = vec![format!("TreeCraft {VERSION}"), String::new(), format!("Library: {}", library.display()), format!("Started from {start}."), "Ready.".into()];
         let mut app = TreeCraft {
             saved: doc.clone(),
             doc,
@@ -271,7 +291,7 @@ impl TreeCraft {
             redo: vec![],
             pending_undo: None,
             clipboard: vec![],
-            wind_on: true,
+            wind_on: false,
             wireframe: false,
             show_leaves: true,
             show_branches: true,
@@ -299,6 +319,16 @@ impl TreeCraft {
             graph_zoom: 1.0,
             graph_pan: Vec2::ZERO,
             graph_drag: None,
+            sel_inst: None,
+            inst_gizmo: 'W',
+            gizmo_drag: None,
+            hand_tool: 3,
+            stroke: vec![],
+            hand_drag: None,
+            hand_sel: None,
+            show_collision: true,
+            graph_offset: HashMap::new(),
+            out_tab: 0,
             editors: EditorState::default(),
             pics: Pics::default(),
             curve_edit: None,
@@ -314,7 +344,7 @@ impl TreeCraft {
             recent: vec![],
             ui_scale: 1.0,
             theme: Theme::Blender,
-            install,
+            library,
             start: Instant::now(),
             gen_ms: 0.0,
             draw_ms: 0.0,
@@ -331,7 +361,7 @@ impl TreeCraft {
         app.graph_stats = prefs.graph_stats;
         app.graph_names = prefs.graph_names;
         app.graph_vertical = prefs.graph_vertical;
-        app.wind_on = prefs.wind_on;
+        // Wind always starts off; the person turns it on from Scene ▸ Wind.
         app.ground = prefs.ground;
         app.grid = prefs.grid;
         app.shadow = prefs.shadow;
@@ -362,7 +392,7 @@ impl TreeCraft {
             gizmo: self.gizmo,
             ortho: self.cam.ortho,
             start_on_launch: self.start_on_launch,
-            install: self.install.as_ref().map(|d| d.display().to_string()),
+            library: Some(self.library.display().to_string()),
             recent: self.recent.iter().map(|p| p.display().to_string()).collect(),
         }
         .save();
@@ -407,6 +437,41 @@ impl TreeCraft {
                 }
             }
         }
+        if let Some(s) = val("--edit-map").and_then(|t| t.parse::<usize>().ok()) {
+            self.editors.edit_mesh = None;
+            self.editors.map_edit = Some(panels::MapEdit::new(self.editors.mat, s));
+            if let Some(n) = val("--map-preset").and_then(|t| t.parse::<usize>().ok()) {
+                if let (Some(m), Some((_, g))) = (self.doc.materials.get_mut(self.editors.mat), crate::texgen::presets().into_iter().nth(n)) {
+                    m.maps[s].gen = g;
+                }
+            }
+        }
+        if args.iter().any(|a| a == "--edit-area") {
+            if let Some(m) = self.doc.materials.get_mut(self.editors.mat) {
+                if m.uv_areas.is_empty() {
+                    m.uv_areas.push(model::UvArea::new(1));
+                }
+                self.editors.mat_sub = 2;
+                self.editors.area_edit = Some(panels::AreaEdit::new(self.editors.mat, 0));
+            }
+        }
+        if let Some(m) = val("--mode").and_then(|t| t.parse::<usize>().ok()) {
+            self.edit_mode = m.min(2);
+            // Pick the selected generator's first branch, so the gizmo shows.
+            if m == 1 {
+                self.mesh = gen::build_lod(&self.doc, 0.0);
+                self.sel_inst = self.selected.and_then(|id| self.mesh.insts.iter().filter(|(_, i)| i.gen == id).map(|(k, _)| *k).min());
+            }
+        }
+        if args.iter().any(|a| a == "--add-disp") {
+            let mut d = model::DispAsset::new("Displacement 1");
+            d.file = self.doc.materials.iter().find_map(|m| m.maps.first().and_then(|s| s.file.clone()));
+            self.doc.displacements.push(d);
+            self.editors.tab = 3;
+        }
+        if let Some(t) = val("--out-tab").and_then(|t| t.parse().ok()) {
+            self.out_tab = t;
+        }
         if let Some(t) = val("--editor-tab").and_then(|t| t.parse().ok()) {
             self.editors.tab = t;
         }
@@ -414,7 +479,8 @@ impl TreeCraft {
             self.show_welcome = true;
         }
         if args.iter().any(|a| a == "--edit-mesh") {
-            self.editors.edit_mesh = Some(panels::MeshEdit::new(0, self.doc.meshes[0].clone()));
+            let i = val("--edit-mesh").and_then(|s| s.parse::<usize>().ok()).filter(|&i| i < self.doc.meshes.len()).unwrap_or(0);
+            self.editors.edit_mesh = Some(panels::MeshEdit::new(i, self.doc.meshes[i].clone()));
         }
         if let Some(k) = val("--edit-curve") {
             if let Some(id) = self.selected {
@@ -473,9 +539,21 @@ impl TreeCraft {
         self.say(msg);
     }
 
+    /// A new tree from a startup file (library/startup/<name>.tcraft), or the built-in one.
     fn new_from(&mut self, name: &str) {
         self.path = None;
-        self.load_doc(model::template(name), format!("New tree from the {name} template."));
+        let doc = read_tcraft(&self.library.join("startup").join(format!("{name}.tcraft"))).unwrap_or_else(|_| model::template(name));
+        self.load_doc(doc, format!("New tree from {name}."));
+    }
+
+    /// The startup files' names (library/startup), Blank first.
+    fn startup_names(&self) -> Vec<String> {
+        let mut names: Vec<String> = spm::list(&self.library.join("startup"), "tcraft").into_iter().map(|(n, _)| n).collect();
+        names.sort_by_key(|n| (n != "Blank", n.to_lowercase()));
+        if names.is_empty() {
+            names = model::TEMPLATES.iter().map(|s| s.to_string()).collect();
+        }
+        names
     }
 
     fn open_path(&mut self, p: PathBuf) {
@@ -484,7 +562,7 @@ impl TreeCraft {
             match spm::load_model(&p) {
                 Ok((d, skipped)) => {
                     self.path = None;
-                    let mut msg = format!("Opened SpeedTree file {} ({} generators).", p.display(), d.gens.len());
+                    let mut msg = format!("Imported {} ({} generators).", p.display(), d.gens.len());
                     if skipped > 0 {
                         msg.push_str(&format!(" {skipped} generators of kinds TreeCraft doesn't build yet were left out."));
                     }
@@ -506,7 +584,7 @@ impl TreeCraft {
     }
 
     fn open(&mut self) {
-        let Some(p) = rfd::FileDialog::new().add_filter("Trees", &["tcraft", "spm"]).add_filter("TreeCraft tree", &["tcraft"]).add_filter("SpeedTree model", &["spm"]).pick_file() else { return };
+        let Some(p) = rfd::FileDialog::new().add_filter("Trees", &["tcraft", "spm"]).add_filter("TreeCraft tree", &["tcraft"]).add_filter("SPM model", &["spm"]).pick_file() else { return };
         self.open_path(p);
     }
 
@@ -570,7 +648,7 @@ impl TreeCraft {
         self.say(format!("Added {}.", preset.unwrap_or(kind.label())));
     }
 
-    /// Add one of the original's generator templates (.stt) under the selection.
+    /// Add one of the generator templates (.stt) under the selection.
     fn add_template(&mut self, path: &std::path::Path, trunk: bool) {
         let target = self.add_target(Kind::Branch, trunk);
         let before = self.doc.clone();
@@ -676,21 +754,6 @@ impl TreeCraft {
 
     // ------------------------------------------------------------------ menus
 
-    fn template_menu(&mut self, ui: &mut egui::Ui, dir: PathBuf, trunk: bool) {
-        for (name, p) in spm::subdirs(&dir) {
-            if name.is_empty() || name.eq_ignore_ascii_case("Photogrammetry") || name.eq_ignore_ascii_case("Decorations") {
-                continue;
-            }
-            ui.menu_button(name, |ui| self.template_menu(ui, p, trunk || dir.ends_with("____Trunks")));
-        }
-        for (name, p) in spm::list(&dir, "stt") {
-            if ui.button(&name).clicked() {
-                self.add_template(&p, trunk || dir.to_string_lossy().contains("Trunks") || name == "Trunk");
-                ui.close();
-            }
-        }
-    }
-
     fn add_menu(&mut self, ui: &mut egui::Ui) {
         ui.menu_button("Branch", |ui| {
             if ui.button("Branch (default)").clicked() {
@@ -757,22 +820,11 @@ impl TreeCraft {
                 self.add_child(Kind::Photogrammetry, None);
                 ui.close();
             }
-            if let Some(dir) = self.install.clone().map(|d| d.join("templates").join("combined").join("Photogrammetry")).filter(|d| d.is_dir()) {
-                ui.separator();
-                for (name, p) in spm::list(&dir, "stt") {
-                    if ui.button(&name).clicked() {
-                        self.add_template(&p, false);
-                        ui.close();
-                    }
-                }
-            }
+
         });
         ui.separator();
-        if let Some(dir) = self.install.clone().map(|d| d.join("templates").join("combined")).filter(|d| d.is_dir()) {
-            ui.menu_button("SpeedTree templates", |ui| self.template_menu(ui, dir, false));
-        }
         if ui.button("From file...").clicked() {
-            if let Some(p) = rfd::FileDialog::new().add_filter("SpeedTree generator template", &["stt"]).pick_file() {
+            if let Some(p) = rfd::FileDialog::new().add_filter("Generator template", &["stt"]).pick_file() {
                 self.add_template(&p, false);
             }
             ui.close();
@@ -887,12 +939,14 @@ impl TreeCraft {
         if ui.add(sc("Zoom all", "A")).clicked() {
             self.graph_zoom = 1.0;
             self.graph_pan = Vec2::ZERO;
+            self.graph_offset.clear();
             self.frame_tree();
             ui.close();
         }
         if ui.button("Layout generators").clicked() {
             self.graph_zoom = 1.0;
             self.graph_pan = Vec2::ZERO;
+            self.graph_offset.clear();
             ui.close();
         }
         ui.menu_button("Orientation", |ui| {
@@ -922,19 +976,19 @@ impl TreeCraft {
     }
 
     fn new_menu(&mut self, ui: &mut egui::Ui) {
-        if ui.button("Blank").clicked() {
-            self.new_from("Blank");
-            ui.close();
-        }
-        ui.separator();
-        for t in model::TEMPLATES {
-            if t == "Blank" {
-                continue;
-            }
+        for (i, t) in self.startup_names().iter().enumerate() {
             if ui.button(t).clicked() {
                 self.new_from(t);
                 ui.close();
             }
+            if i == 0 && t == "Blank" {
+                ui.separator();
+            }
+        }
+        ui.separator();
+        if ui.button("📂 Open startup folder").on_hover_text("Edit or add the trees File > New starts from").clicked() {
+            open_folder(&self.library.join("startup"));
+            ui.close();
         }
     }
 
@@ -944,7 +998,7 @@ impl TreeCraft {
                 ui.menu_button(name, |ui| self.samples_menu(ui, p, depth + 1));
             }
         }
-        for (name, p) in spm::list(&dir, "spm") {
+        for (name, p) in spm::list(&dir, "tcraft").into_iter().chain(spm::list(&dir, "spm")) {
             if ui.button(name).clicked() {
                 self.open_path(p);
                 ui.close();
@@ -954,15 +1008,31 @@ impl TreeCraft {
 
     fn menu_bar(&mut self, ui: &mut egui::Ui) {
         egui::MenuBar::new().ui(ui, |ui| {
+            // The app's logo at the left of the menu bar.
+            let logo = ui.ctx().data_mut(|d| d.get_temp::<egui::TextureHandle>(egui::Id::new("app_logo")));
+            let logo = logo.unwrap_or_else(|| {
+                let (rgba, n) = crate::app_icon();
+                let small = image::imageops::resize(&image::RgbaImage::from_raw(n, n, rgba).unwrap_or_default(), 48, 48, image::imageops::FilterType::Lanczos3);
+                let t = ui.ctx().load_texture("app_logo", egui::ColorImage::from_rgba_unmultiplied([48, 48], small.as_raw()), egui::TextureOptions::LINEAR);
+                ui.ctx().data_mut(|d| d.insert_temp(egui::Id::new("app_logo"), t.clone()));
+                t
+            });
+            ui.add(egui::Image::new((logo.id(), Vec2::splat(18.0)))).on_hover_text(format!("TreeCraft {VERSION}"));
             ui.menu_button("File", |ui| {
                 ui.menu_button("New", |ui| self.new_menu(ui));
                 if ui.add(egui::Button::new("Open...").shortcut_text("Ctrl+O")).clicked() {
                     ui.close();
                     self.open();
                 }
-                if let Some(dir) = self.install.clone().map(|d| d.join("samples")).filter(|d| d.is_dir()) {
-                    ui.menu_button("Browse samples", |ui| self.samples_menu(ui, dir, 0));
-                }
+                let samples = self.library.join("samples");
+                ui.menu_button("Browse samples", |ui| {
+                    self.samples_menu(ui, samples.clone(), 0);
+                    ui.separator();
+                    if ui.button("📂 Open samples folder").clicked() {
+                        open_folder(&samples);
+                        ui.close();
+                    }
+                });
                 ui.separator();
                 if ui.add(egui::Button::new("Save").shortcut_text("Ctrl+S")).clicked() {
                     ui.close();
@@ -1116,18 +1186,24 @@ impl TreeCraft {
                 s.gen_open = false;
             }
             ui.horizontal(|ui| {
-                ui.add_space(6.0);
+                ui.spacing_mut().item_spacing.x = 4.0;
+                ui.add_space(4.0);
                 ui.menu_button("➕ Add", |ui| s.add_menu(ui));
                 ui.menu_button("✨ Actions", |ui| s.actions_menu(ui));
                 if ui.button("🎲 Randomize").on_hover_text("New random seeds for the selection (or the whole tree)").clicked() {
                     s.randomize(s.selected.is_some());
                 }
+                ui.menu_button("📦 Objects", |ui| s.scene_objects_menu(ui)).response.on_hover_text("Scene objects: add forces and collision objects");
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     ui.add_space(4.0);
                     ui.menu_button("⚙", |ui| {
                         if ui.button("Zoom all").clicked() {
                             s.graph_zoom = 1.0;
                             s.graph_pan = Vec2::ZERO;
+                            ui.close();
+                        }
+                        if ui.button("Tidy layout").on_hover_text("Put every dragged node back in its place").clicked() {
+                            s.graph_offset.clear();
                             ui.close();
                         }
                         ui.separator();
@@ -1148,18 +1224,737 @@ impl TreeCraft {
                 ui.horizontal(|ui| {
                     let w = ui.available_width();
                     ui.add_space((w - 5.0 * 44.0).max(0.0) / 2.0);
-                    for (icon, tip) in [("🌀", "Forces"), ("⛔", "Collision objects"), ("📷", "Projectors"), ("☰", "Masks"), ("✏", "Hand-drawn guides")] {
-                        ui.label(RichText::new(format!("{icon} 0")).size(12.5)).on_hover_text(format!("{tip}: not built yet"));
+                    let forces = s.doc.objects.iter().filter(|o| o.kind.is_force()).count();
+                    let colliders = s.doc.objects.len() - forces;
+                    for (icon, tip, n) in [("🌀", "Forces", forces), ("⛔", "Collision objects", colliders), ("📷", "Projectors", 0), ("☰", "Masks", 0), ("✏", "Hand-drawn guides", 0)] {
+                        let r = ui.label(RichText::new(format!("{icon} {n}")).size(12.5));
+                        r.on_hover_text(if n > 0 || tip.starts_with('F') || tip.starts_with('C') { format!("{tip} (Scene Objects menu)") } else { format!("{tip}: not built yet") });
                     }
                 });
             }
         });
     }
 
+    /// Generation ▸ Objects (and the viewport's Objects): add forces and collision objects, and
+    /// edit the ones there are.
+    fn scene_objects_menu(&mut self, ui: &mut egui::Ui) {
+        let height = (self.mesh.max.y - self.mesh.min.y).max(1.0);
+        let mut add = None;
+        ui.menu_button("🧲 Forces", |ui| {
+            for k in ObjKind::FORCES {
+                if ui.button(k.label()).on_hover_text(k.tip()).clicked() {
+                    add = Some(k);
+                    ui.close();
+                }
+            }
+            ui.menu_button("⬢ Geometry", |ui| {
+                for k in ObjKind::GEOMETRY {
+                    if ui.button(k.label()).on_hover_text(k.tip()).clicked() {
+                        add = Some(k);
+                        ui.close();
+                    }
+                }
+            });
+        })
+        .response
+        .on_hover_text("Forces bend, swirl or remove branches as they grow");
+        ui.menu_button("⛔ Collisions", |ui| {
+            for k in ObjKind::COLLIDERS {
+                if ui.button(k.label()).on_hover_text(format!("{}. Fitted around the selected generator (or the whole tree).", k.tip())).clicked() {
+                    add = Some(k);
+                    ui.close();
+                }
+            }
+        })
+        .response
+        .on_hover_text("Collision objects: branches grow around them");
+        if let Some(k) = add {
+            let before = self.doc.clone();
+            let n = self.doc.objects.iter().filter(|o| o.kind == k).count() + 1;
+            let mut o = SceneObj::new(k, n, height);
+            self.fit_object(&mut o);
+            self.doc.objects.push(o);
+            self.undo.push(before);
+            self.redo.clear();
+            self.dirty = true;
+            self.say(format!("Added {} {n}.", k.label()));
+        }
+        if self.doc.objects.is_empty() {
+            return;
+        }
+        ui.separator();
+        let mut remove = None;
+        let mut refit = None;
+        let mut changed = false;
+        let range = height * 2.0;
+        for (i, o) in self.doc.objects.iter_mut().enumerate() {
+            ui.menu_button(format!("{} {}", if o.kind.is_force() { "🧲" } else { "⛔" }, o.name), |ui| {
+                ui.label(RichText::new(o.kind.tip()).size(11.5).weak());
+                changed |= ui.checkbox(&mut o.on, "On").changed();
+                ui.label("Position");
+                ui.horizontal(|ui| {
+                    for v in &mut o.pos {
+                        changed |= ui.add(egui::DragValue::new(v).speed(range * 0.005).range(-range..=range)).changed();
+                    }
+                });
+                if o.kind.uses_dir() {
+                    ui.label(if o.kind == ObjKind::Planar { "Plane normal" } else { "Direction" });
+                    ui.horizontal(|ui| {
+                        for v in &mut o.dir {
+                            changed |= ui.add(egui::DragValue::new(v).speed(0.01).range(-1.0..=1.0)).changed();
+                        }
+                    });
+                }
+                if o.kind.is_force() && o.kind != ObjKind::Knockout {
+                    changed |= ui.add(egui::Slider::new(&mut o.strength, -2.0..=2.0).text("Strength")).changed();
+                }
+                match o.kind {
+                    ObjKind::Box | ObjKind::GeoBox => {
+                        ui.label("Half size");
+                        ui.horizontal(|ui| {
+                            for v in &mut o.size {
+                                changed |= ui.add(egui::DragValue::new(v).speed(range * 0.003).range(0.01..=range)).changed();
+                            }
+                        });
+                    }
+                    ObjKind::Mesh => {}
+                    _ => {
+                        let label = match o.kind {
+                            ObjKind::Sphere | ObjKind::Capsule | ObjKind::GeoSphere | ObjKind::Knockout => "Radius",
+                            _ => "Reach",
+                        };
+                        changed |= ui.add(egui::Slider::new(&mut o.radius, 0.01..=height).text(label)).changed();
+                    }
+                }
+                if o.kind == ObjKind::Capsule {
+                    changed |= ui.add(egui::Slider::new(&mut o.length, 0.0..=height * 2.0).text("Length")).on_hover_text("Distance between the two round ends").changed();
+                }
+                if o.kind == ObjKind::Gnarl {
+                    changed |= ui.add(egui::Slider::new(&mut o.freq, 0.1..=5.0).text("Busyness")).on_hover_text("How quickly the wandering changes").changed();
+                }
+                if !matches!(o.kind, ObjKind::Direction | ObjKind::Return | ObjKind::SeasonLight | ObjKind::SeasonWind) && ui.button("⤢ Fit to selection").on_hover_text("Fit around the selected generator (or the whole tree)").clicked() {
+                    refit = Some(i);
+                    ui.close();
+                }
+                if ui.button("🗑 Delete").clicked() {
+                    remove = Some(i);
+                    ui.close();
+                }
+            });
+        }
+        if let Some(i) = refit {
+            let before = self.doc.clone();
+            let mut o = self.doc.objects[i].clone();
+            self.fit_object(&mut o);
+            self.doc.objects[i] = o;
+            self.undo.push(before);
+            self.redo.clear();
+            changed = true;
+        }
+        if let Some(i) = remove {
+            let before = self.doc.clone();
+            self.doc.objects.remove(i);
+            self.undo.push(before);
+            self.redo.clear();
+            changed = true;
+        }
+        if changed {
+            self.dirty = true;
+        }
+    }
+
+    /// Shape an object around the selected generator's geometry (or the whole tree's): a sphere
+    /// or box that holds it, a capsule along its longest side, or a convex hull of 26 planes.
+    fn fit_object(&self, o: &mut SceneObj) {
+        use crate::math::{v3, V3};
+        let sel = self.selected.filter(|&id| self.doc.get(id).is_some_and(|g| g.kind != Kind::Tree));
+        let pts: Vec<V3> = self.mesh.v.iter().filter(|v| sel.is_none_or(|id| v.gen == id)).map(|v| v.p).collect();
+        if pts.is_empty() {
+            return;
+        }
+        let (lo, hi) = pts.iter().fold((v3(f32::MAX, f32::MAX, f32::MAX), v3(f32::MIN, f32::MIN, f32::MIN)), |(l, h), p| (v3(l.x.min(p.x), l.y.min(p.y), l.z.min(p.z)), v3(h.x.max(p.x), h.y.max(p.y), h.z.max(p.z))));
+        let c = (lo + hi) * 0.5;
+        let h = [(hi.x - lo.x) * 0.5, (hi.y - lo.y) * 0.5, (hi.z - lo.z) * 0.5].map(|x| x.max(0.01));
+        let to = |p: V3| [p.x, p.y, p.z];
+        o.pos = to(c);
+        match o.kind {
+            ObjKind::Sphere | ObjKind::GeoSphere | ObjKind::Knockout => {
+                o.radius = pts.iter().map(|p| (*p - c).len()).fold(0.01, f32::max);
+            }
+            ObjKind::Box | ObjKind::GeoBox => o.size = h,
+            ObjKind::Capsule => {
+                let a = (0..3).max_by(|&i, &j| h[i].total_cmp(&h[j])).unwrap();
+                let mut dir = [0.0; 3];
+                dir[a] = 1.0;
+                let r = (0..3).filter(|&i| i != a).map(|i| h[i]).fold(0.01, f32::max);
+                o.radius = r;
+                o.length = (2.0 * h[a] - 2.0 * r).max(0.0);
+                o.dir = dir;
+                o.pos = to(c - v3(dir[0], dir[1], dir[2]) * (o.length * 0.5));
+            }
+            ObjKind::Mesh => {
+                o.planes.clear();
+                o.hull.clear();
+                for x in -1i32..=1 {
+                    for y in -1i32..=1 {
+                        for z in -1i32..=1 {
+                            if (x, y, z) == (0, 0, 0) {
+                                continue;
+                            }
+                            let n = v3(x as f32, y as f32, z as f32).norm();
+                            let far = pts.iter().map(|p| *p - c).max_by(|a, b| a.dot(n).total_cmp(&b.dot(n))).unwrap();
+                            o.planes.push([n.x, n.y, n.z, far.dot(n)]);
+                            o.hull.push(to(far));
+                        }
+                    }
+                }
+            }
+            _ => o.radius = h[0].max(h[1]).max(h[2]) * 1.5,
+        }
+    }
+
+    // ------------------------------------------------------------------ Instance and Hand Draw modes
+
+    /// Viewport input for Instance mode gizmos and Hand Draw tools. Returns true while it owns
+    /// the drag (so the camera doesn't orbit).
+    fn viewport_tools(&mut self, ui: &mut egui::Ui, resp: &egui::Response, rect: Rect) -> bool {
+        match self.edit_mode {
+            1 => self.instance_gizmo(ui, resp, rect),
+            2 => self.hand_draw(ui, resp, rect),
+            _ => false,
+        }
+    }
+
+    /// The picked instance's frame: base, tip, along, side, across, length and base radius.
+    fn inst_frame(&self) -> Option<(u32, u64, V3, V3, V3, V3, V3, f32, f32)> {
+        let key = self.sel_inst?;
+        let info = self.mesh.insts.get(&key)?;
+        let (base, tip) = (*info.pts.first()?, *info.pts.last()?);
+        let along = (info.pts.get(1).copied().unwrap_or(tip) - base).norm();
+        let side = (info.side - along * info.side.dot(along)).norm();
+        let across = along.cross(side).norm();
+        let len: f32 = info.pts.windows(2).map(|w| (w[1] - w[0]).len()).sum();
+        Some((info.gen, key, base, tip, along, side, across, len.max(1e-3), info.r0))
+    }
+
+    /// Instance mode: Q property dots, W move arrows, E turn rings, R scale, all in the
+    /// instance's own axes. Edits are added to the instance (its generator stays as it is).
+    fn instance_gizmo(&mut self, ui: &mut egui::Ui, resp: &egui::Response, rect: Rect) -> bool {
+        let Some((gid, key, base, tip, along, side, across, len, r0)) = self.inst_frame() else { return false };
+        let pr = render::Projector::new(&self.cam, rect);
+        // Drawn over the tree (the viewport picture is painted after this runs).
+        let p = ui.ctx().layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("viewport_tools"))).with_clip_rect(rect);
+        let scr = |q: V3| pr.project(q).map(|x| x.0);
+        let arm = len * 0.3;
+        let axes = [(side, Color32::from_rgb(235, 80, 80), "X"), (along, Color32::from_rgb(90, 210, 90), "Y"), (across, Color32::from_rgb(90, 140, 250), "Z")];
+        // Handles: (screen position, id, label).
+        let mut handles: Vec<(Pos2, usize, &str, Color32)> = vec![];
+        match self.inst_gizmo {
+            'Q' => {
+                let mid = base + (tip - base) * 0.5;
+                let dots = [
+                    (tip, 0, "Length", Color32::from_rgb(250, 200, 60)),
+                    (base + side * (r0 * 2.5).max(len * 0.04), 1, "Thickness", Color32::from_rgb(240, 140, 60)),
+                    (mid + side * (len * 0.15), 2, "Start angle", Color32::from_rgb(120, 200, 255)),
+                    (tip - V3::UP * (len * 0.15), 3, "Gravity", Color32::from_rgb(200, 120, 255)),
+                    (tip + across * (len * 0.12), 4, "Noise", Color32::from_rgb(120, 240, 170)),
+                ];
+                for (q, id, name, col) in dots {
+                    if let Some(s) = scr(q) {
+                        handles.push((s, id, name, col));
+                    }
+                }
+            }
+            'W' | 'E' | 'R' => {
+                if let Some(o) = scr(base) {
+                    for (i, (ax, col, name)) in axes.iter().enumerate() {
+                        if let Some(e) = scr(base + *ax * arm) {
+                            match self.inst_gizmo {
+                                'W' => p.arrow(o, e - o, Stroke::new(2.5, *col)),
+                                'E' => {
+                                    let (u, w) = (ax.perp(), ax.cross(ax.perp()).norm());
+                                    let ring: Option<Vec<Pos2>> = (0..=48).map(|k| { let t = k as f32 / 48.0 * std::f32::consts::TAU; scr(base + (u * t.cos() + w * t.sin()) * (arm * 0.8)) }).collect();
+                                    if let Some(ring) = ring {
+                                        p.add(egui::Shape::line(ring, Stroke::new(2.0, *col)));
+                                    }
+                                }
+                                _ => {
+                                    p.line_segment([o, e], Stroke::new(2.0, *col));
+                                    p.rect_filled(Rect::from_center_size(e, Vec2::splat(9.0)), CornerRadius::same(1), *col);
+                                }
+                            }
+                            handles.push((e, i, name, *col));
+                        }
+                    }
+                    if self.inst_gizmo == 'R' {
+                        handles.push((o, 3, "All", Color32::WHITE));
+                    }
+                }
+            }
+            _ => {}
+        }
+        for (s, _, name, col) in &handles {
+            p.circle_filled(*s, 6.5, *col);
+            p.circle_stroke(*s, 6.5, Stroke::new(1.2, Color32::from_gray(20)));
+            if self.inst_gizmo == 'Q' {
+                p.text(*s + Vec2::new(9.0, -9.0), egui::Align2::LEFT_BOTTOM, *name, egui::FontId::proportional(11.5), *col);
+            }
+        }
+        if resp.drag_started_by(egui::PointerButton::Primary) {
+            if let Some(o) = ui.input(|i| i.pointer.press_origin()) {
+                if let Some(h) = handles.iter().find(|h| h.0.distance(o) < 12.0) {
+                    let before = self.doc.get(gid).and_then(|g| g.inst.get(&key)).cloned().unwrap_or_default();
+                    self.snapshot();
+                    self.gizmo_drag = Some((h.1, before));
+                }
+            }
+        }
+        let Some((h, _)) = self.gizmo_drag.clone() else { return false };
+        if !resp.dragged() {
+            self.gizmo_drag = None;
+            return false;
+        }
+        let d = resp.drag_delta();
+        let size = self.doc.size_scalar().max(1e-3);
+        // A world distance from pixels, along a screen direction.
+        let along_px = |ax: V3| -> f32 {
+            match (scr(base), scr(base + ax * arm)) {
+                (Some(a), Some(b)) if (b - a).length() > 1.0 => (d.dot((b - a).normalized()) / (b - a).length()) * arm,
+                _ => 0.0,
+            }
+        };
+        let mode = self.inst_gizmo;
+        let moved = [along_px(side), along_px(along), along_px(across)];
+        let Some(g) = self.doc.get_mut(gid) else { return true };
+        let e = g.inst.entry(key).or_default();
+        let mut bump = |k: &str, v: f32| *e.add.entry(k.to_string()).or_insert(0.0) += v;
+        match mode {
+            'Q' => match h {
+                0 => bump("Spine:Length:Absolute", moved[1] / size),
+                1 => bump("Skin:Radius:Absolute", moved[0] * 0.25 / size),
+                2 => bump("Spine:Orientation:Start angle", d.x * 0.002),
+                3 => bump("Spine:Shape:Gravity", d.y * 0.004),
+                _ => bump("Spine:Noise:Early:Amount", d.x * 0.003),
+            },
+            'W' => {
+                let ax = [side, along, across][h.min(2)];
+                let off = ax * moved[h.min(2)];
+                e.offset = [e.offset[0] + off.x, e.offset[1] + off.y, e.offset[2] + off.z];
+            }
+            'E' => {
+                // Handle i turns about its axis: X → sideways (rot 1), Y → along (rot 0), Z → across (rot 2).
+                let slot = [1, 0, 2][h.min(2)];
+                e.rot[slot] += (d.x - d.y) * 0.01;
+            }
+            _ => {
+                let s = if e.scale > 0.0 { e.scale } else { 1.0 };
+                e.scale = (s * (-(d.y) * 0.006 + d.x * 0.006).exp()).clamp(0.05, 20.0);
+            }
+        }
+        self.dirty = true;
+        true
+    }
+
+    /// The point where the pointer's ray meets the plane through `on` facing the camera.
+    fn ray_point(&self, rect: Rect, at: Pos2, on: V3) -> Option<V3> {
+        let (o, dir) = render::Projector::new(&self.cam, rect).ray(at);
+        let (_, fwd, _, _) = self.cam.basis();
+        let den = dir.dot(fwd);
+        if den.abs() < 1e-6 {
+            return None;
+        }
+        let t = (on - o).dot(fwd) / den;
+        (t > 0.0).then(|| o + dir * t)
+    }
+
+    /// The parent's spine point nearest the pointer, for starting a drawn branch: (parent
+    /// instance key, point). A generator on the tree root starts on the ground.
+    fn hand_start(&self, rect: Rect, at: Pos2, gid: u32) -> Option<(u64, V3)> {
+        let pid = self.doc.get(gid)?.parent?;
+        if pid == self.doc.root() {
+            let (o, dir) = render::Projector::new(&self.cam, rect).ray(at);
+            if dir.y.abs() < 1e-6 {
+                return None;
+            }
+            let t = -o.y / dir.y;
+            return (t > 0.0).then(|| (0, o + dir * t));
+        }
+        let pr = render::Projector::new(&self.cam, rect);
+        let mut best: Option<(f32, u64, V3)> = None;
+        for (k, info) in self.mesh.insts.iter().filter(|(_, i)| i.gen == pid) {
+            for q in &info.pts {
+                if let Some((s, _)) = pr.project(*q) {
+                    let d = s.distance(at);
+                    if d < 40.0 && best.is_none_or(|b| d < b.0) {
+                        best = Some((d, *k, *q));
+                    }
+                }
+            }
+        }
+        best.map(|(_, k, q)| (k, q))
+    }
+
+    /// Hand Draw mode: draw new branches, place them with a click, edit, bend, displace and trim
+    /// the drawn splines of the selected generator.
+    fn hand_draw(&mut self, ui: &mut egui::Ui, resp: &egui::Response, rect: Rect) -> bool {
+        let Some(gid) = self.selected.filter(|&id| self.doc.get(id).is_some_and(|g| g.kind.render_as() == Kind::Branch)) else { return false };
+        let pr = render::Projector::new(&self.cam, rect);
+        // Drawn over the tree (the viewport picture is painted after this runs).
+        let p = ui.ctx().layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("viewport_tools"))).with_clip_rect(rect);
+        let splines: Vec<Vec<V3>> = self.doc.get(gid).map(|g| g.drawn.iter().map(|d| d.pts.iter().map(|q| crate::math::v3(q[0], q[1], q[2])).collect()).collect()).unwrap_or_default();
+        // Draw the splines and their points.
+        for (si, sp) in splines.iter().enumerate() {
+            let on = self.hand_sel == Some(si);
+            let line: Option<Vec<Pos2>> = sp.iter().map(|q| pr.project(*q).map(|x| x.0)).collect();
+            if let Some(line) = line {
+                p.add(egui::Shape::line(line.clone(), Stroke::new(if on { 2.5 } else { 1.5 }, Color32::from_rgb(255, 170, 60))));
+                for s in line {
+                    p.circle_filled(s, if on { 4.5 } else { 3.0 }, Color32::from_rgb(255, 220, 120));
+                }
+            }
+        }
+        if !self.stroke.is_empty() {
+            let line: Option<Vec<Pos2>> = self.stroke.iter().map(|q| pr.project(crate::math::v3(q[0], q[1], q[2])).map(|x| x.0)).collect();
+            if let Some(line) = line {
+                p.add(egui::Shape::line(line, Stroke::new(2.5, Color32::WHITE)));
+            }
+        }
+        let nearest_pt = |at: Pos2| -> Option<(usize, usize)> {
+            let mut best: Option<(f32, usize, usize)> = None;
+            for (si, sp) in splines.iter().enumerate() {
+                for (pi, q) in sp.iter().enumerate() {
+                    if let Some((s, _)) = pr.project(*q) {
+                        let d = s.distance(at);
+                        if d < 12.0 && best.is_none_or(|b| d < b.0) {
+                            best = Some((d, si, pi));
+                        }
+                    }
+                }
+            }
+            best.map(|(_, s, i)| (s, i))
+        };
+        let pointer = resp.interact_pointer_pos();
+        match self.hand_tool {
+            // Hand Draw: drag from the parent to trace a branch.
+            3 => {
+                if resp.drag_started_by(egui::PointerButton::Primary) {
+                    if let Some((pk, start)) = ui.input(|i| i.pointer.press_origin()).and_then(|o| self.hand_start(rect, o, gid)) {
+                        self.stroke = vec![[start.x, start.y, start.z]];
+                        self.hand_drag = Some((usize::MAX, pk as usize));
+                    }
+                }
+                if let (Some((usize::MAX, _)), Some(at)) = (self.hand_drag, pointer) {
+                    let s0 = self.stroke[0];
+                    if let Some(q) = self.ray_point(rect, at, crate::math::v3(s0[0], s0[1], s0[2])) {
+                        let last = *self.stroke.last().unwrap();
+                        let lp = pr.project(crate::math::v3(last[0], last[1], last[2])).map(|x| x.0);
+                        if lp.is_none_or(|lp| lp.distance(at) > 6.0) {
+                            self.stroke.push([q.x, q.y, q.z]);
+                        }
+                    }
+                }
+                if self.hand_drag.is_some_and(|h| h.0 == usize::MAX) && !resp.dragged() {
+                    let pk = self.hand_drag.take().unwrap().1 as u64;
+                    if self.stroke.len() >= 3 {
+                        self.snapshot();
+                        let pts = std::mem::take(&mut self.stroke);
+                        if let Some(g) = self.doc.get_mut(gid) {
+                            g.drawn.push(model::DrawnSpline { parent: pk, pts });
+                            self.hand_sel = Some(g.drawn.len() - 1);
+                        }
+                        self.dirty = true;
+                        self.say("Drew a branch. Edit, Bend or Trim it, or draw another.");
+                    }
+                    self.stroke.clear();
+                }
+                return self.hand_drag.is_some();
+            }
+            // Click Place: a straight branch where you click the parent.
+            4 => {
+                if resp.clicked() {
+                    if let Some((pk, start)) = pointer.and_then(|at| self.hand_start(rect, at, gid)) {
+                        let (_, fwd, right, _) = self.cam.basis();
+                        let len = self.doc.get(gid).map_or(1.0, |g| g.f("Spine:Length:Absolute")) * self.doc.size_scalar();
+                        let out = (V3::UP * 0.7 + right * if start.dot(right) >= 0.0 { 0.7 } else { -0.7 } - fwd * 0.1).norm();
+                        let end = start + out * len.max(0.1);
+                        self.snapshot();
+                        if let Some(g) = self.doc.get_mut(gid) {
+                            g.drawn.push(model::DrawnSpline { parent: pk, pts: vec![[start.x, start.y, start.z], [end.x, end.y, end.z]] });
+                            self.hand_sel = Some(g.drawn.len() - 1);
+                        }
+                        self.dirty = true;
+                    }
+                }
+                false
+            }
+            // Edit (move one point), Bend (neighbours follow), Displacement (the middle follows).
+            0 | 1 | 5 => {
+                if resp.drag_started_by(egui::PointerButton::Primary) {
+                    if let Some(hit) = ui.input(|i| i.pointer.press_origin()).and_then(nearest_pt) {
+                        self.snapshot();
+                        self.hand_drag = Some(hit);
+                        self.hand_sel = Some(hit.0);
+                    }
+                }
+                let Some((si, pi)) = self.hand_drag else { return false };
+                if !resp.dragged() {
+                    self.hand_drag = None;
+                    return false;
+                }
+                let Some(cur) = splines.get(si).and_then(|s| s.get(pi)).copied() else { return true };
+                let Some(at) = pointer else { return true };
+                let Some(q) = self.ray_point(rect, at, cur) else { return true };
+                let delta = q - cur;
+                let tool = self.hand_tool;
+                if let Some(sp) = self.doc.get_mut(gid).and_then(|g| g.drawn.get_mut(si)) {
+                    let n = sp.pts.len();
+                    for (k, pt) in sp.pts.iter_mut().enumerate() {
+                        let w = match tool {
+                            5 => (k == pi) as u8 as f32,
+                            0 => {
+                                let x = (k as f32 - pi as f32) / (n as f32 * 0.3).max(1.0);
+                                (-x * x).exp()
+                            }
+                            _ => (std::f32::consts::PI * k as f32 / (n - 1).max(1) as f32).sin() / (std::f32::consts::PI * pi as f32 / (n - 1).max(1) as f32).sin().max(0.2),
+                        };
+                        // The base stays on the parent.
+                        let w = if k == 0 { 0.0 } else { w.min(1.0) };
+                        pt[0] += delta.x * w;
+                        pt[1] += delta.y * w;
+                        pt[2] += delta.z * w;
+                    }
+                }
+                self.dirty = true;
+                true
+            }
+            // Trim: click a point to cut the branch there.
+            2 => {
+                if resp.clicked() {
+                    if let Some((si, pi)) = pointer.and_then(nearest_pt) {
+                        self.snapshot();
+                        if let Some(sp) = self.doc.get_mut(gid).and_then(|g| g.drawn.get_mut(si)) {
+                            sp.pts.truncate((pi + 1).max(2));
+                        }
+                        self.dirty = true;
+                    }
+                }
+                false
+            }
+            _ => false,
+        }
+    }
+
+    /// The Hand Draw panel in Properties.
+    fn hand_panel(&mut self, ui: &mut egui::Ui) {
+        let gid = self.selected.filter(|&id| self.doc.get(id).is_some_and(|g| g.kind.render_as() == Kind::Branch));
+        let tools: [(&str, &str, usize, &str); 8] = [
+            ("Edit", "↝ Bend", 0, "Drag a point: its neighbours follow smoothly"),
+            ("Edit", "⇡ Displacement", 1, "Drag a point: the whole middle of the branch follows, the ends stay"),
+            ("Edit", "✂ Trim", 2, "Click a point to cut the branch there"),
+            ("Create", "✏ Hand Draw", 3, "Drag from the parent branch (or the ground) to trace a new branch"),
+            ("Create", "📍 Click Place", 4, "Click the parent branch to place a straight new branch"),
+            ("Vertex", "⬚ Edit", 5, "Drag single points of the drawn branches"),
+            ("Vertex", "◇ Features", 6, "Vertex features aren't built yet"),
+            ("Vertex", "🎨 Colors", 7, "Vertex colours aren't built yet"),
+        ];
+        ui.horizontal_top(|ui| {
+            ui.vertical(|ui| {
+                ui.set_width(130.0);
+                for group in ["Edit", "Create", "Vertex"] {
+                    egui::Frame::new().fill(Color32::from_gray(44)).corner_radius(6).inner_margin(6).show(ui, |ui| {
+                        ui.set_width(118.0);
+                        ui.label(RichText::new(group).strong());
+                        for (_, label, id, tip) in tools.iter().filter(|t| t.0 == group) {
+                            let built = *id < 6;
+                            let b = egui::Button::new(*label).selected(self.hand_tool == *id).min_size(Vec2::new(112.0, 24.0));
+                            if ui.add_enabled(built, b).on_hover_text(*tip).on_disabled_hover_text(*tip).clicked() {
+                                self.hand_tool = *id;
+                            }
+                        }
+                    });
+                    ui.add_space(4.0);
+                }
+            });
+            ui.vertical(|ui| {
+                let w = ui.available_width();
+                let help = tools.iter().find(|t| t.2 == self.hand_tool).map_or("", |t| t.3);
+                egui::Frame::new().fill(Color32::from_gray(44)).corner_radius(6).inner_margin(8).show(ui, |ui| {
+                    ui.set_width(w - 16.0);
+                    ui.label(RichText::new(if self.hand_tool == 3 { "New branches" } else { "Tool" }).strong());
+                    ui.label(help);
+                    if gid.is_none() {
+                        ui.label(RichText::new("Select a branch generator first.").color(Color32::from_rgb(240, 190, 90)));
+                    }
+                });
+                ui.add_space(4.0);
+                egui::Frame::new().fill(Color32::from_gray(44)).corner_radius(6).inner_margin(8).show(ui, |ui| {
+                    ui.set_width(w - 16.0);
+                    ui.label(RichText::new("Conversion").strong());
+                    let pick = self.sel_inst.filter(|k| self.mesh.insts.get(k).is_some_and(|i| Some(i.gen) == gid));
+                    if ui.add_enabled(pick.is_some(), egui::Button::new("Convert to hand drawn").min_size(Vec2::new(w - 20.0, 22.0))).on_hover_text("Turn the picked branch into a hand-drawn one you can edit (click a branch in the 3D view first)").clicked() {
+                        self.convert_to_drawn(pick.into_iter().collect());
+                    }
+                    if ui.add_enabled(gid.is_some(), egui::Button::new("Convert generator to hand drawn").min_size(Vec2::new(w - 20.0, 22.0))).on_hover_text("Turn every branch of this generator into hand-drawn ones").clicked() {
+                        let keys: Vec<u64> = self.mesh.insts.iter().filter(|(_, i)| Some(i.gen) == gid).map(|(k, _)| *k).collect();
+                        self.convert_to_drawn(keys);
+                    }
+                });
+                ui.add_space(4.0);
+                egui::Frame::new().fill(Color32::from_gray(44)).corner_radius(6).inner_margin(8).show(ui, |ui| {
+                    ui.set_width(w - 16.0);
+                    ui.label(RichText::new("Control points").strong());
+                    let has = gid.zip(self.hand_sel).is_some_and(|(g, s)| self.doc.get(g).is_some_and(|g| s < g.drawn.len()));
+                    for (label, k, tip) in [("More", 1.5f32, "Add points along the picked drawn branch"), ("Fewer", 0.66, "Take points away"), ("Redistribute", 1.0, "Space the points evenly")] {
+                        if ui.add_enabled(has, egui::Button::new(label).min_size(Vec2::new(w - 20.0, 22.0))).on_hover_text(tip).clicked() {
+                            self.snapshot();
+                            if let Some(sp) = gid.and_then(|g| self.doc.get_mut(g)).and_then(|g| g.drawn.get_mut(self.hand_sel.unwrap_or(0))) {
+                                let n = ((sp.pts.len() as f32 * k).round() as usize).max(2);
+                                sp.pts = resample(&sp.pts, n);
+                            }
+                            self.dirty = true;
+                        }
+                    }
+                    if ui.add_enabled(has, egui::Button::new("🗑 Delete drawn branch").min_size(Vec2::new(w - 20.0, 22.0))).clicked() {
+                        self.snapshot();
+                        if let Some(g) = gid.and_then(|g| self.doc.get_mut(g)) {
+                            let i = self.hand_sel.unwrap_or(0);
+                            if i < g.drawn.len() {
+                                g.drawn.remove(i);
+                            }
+                        }
+                        self.hand_sel = None;
+                        self.dirty = true;
+                    }
+                });
+            });
+        });
+    }
+
+    /// Hand Draw conversion: the given generated branches become drawn splines and stop being
+    /// generated.
+    fn convert_to_drawn(&mut self, keys: Vec<u64>) {
+        if keys.is_empty() {
+            return;
+        }
+        self.snapshot();
+        let mut n = 0;
+        for k in keys {
+            let Some(info) = self.mesh.insts.get(&k).cloned() else { continue };
+            if let Some(g) = self.doc.get_mut(info.gen) {
+                if g.replaced.insert(k) {
+                    g.drawn.push(model::DrawnSpline { parent: info.parent, pts: info.pts.iter().map(|q| [q.x, q.y, q.z]).collect() });
+                    n += 1;
+                }
+            }
+        }
+        self.dirty = true;
+        self.say(format!("Converted {n} branch(es) to hand drawn."));
+    }
+
+    /// The Instance panel in Properties: the picked instance's move/turn/scale and its own
+    /// values, added on top of the generator's.
+    fn instance_panel(&mut self, ui: &mut egui::Ui) {
+        let Some((gid, key)) = self.sel_inst.and_then(|k| self.mesh.insts.get(&k).map(|i| (i.gen, k))) else {
+            ui.label(RichText::new("Click a branch in the 3D view to pick one instance.\nTab switches modes; Q W E R pick the gizmo (properties, move, rotate, scale).").weak());
+            return;
+        };
+        let name = self.doc.get(gid).map(|g| g.name.clone()).unwrap_or_default();
+        ui.horizontal(|ui| {
+            ui.label(RichText::new(format!("Instance of {name}")).strong());
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                if ui.button("↺ Reset").on_hover_text("Drop this instance's own edits").clicked() {
+                    self.snapshot();
+                    if let Some(g) = self.doc.get_mut(gid) {
+                        g.inst.remove(&key);
+                    }
+                    self.dirty = true;
+                }
+            });
+        });
+        ui.horizontal(|ui| {
+            for (c, tip) in [('Q', "Properties: drag the dots for length, thickness, start angle, gravity and noise"), ('W', "Move along the instance's own axes"), ('E', "Rotate about the instance's own axes"), ('R', "Scale the instance")] {
+                if ui.selectable_label(self.inst_gizmo == c, RichText::new(c.to_string()).strong()).on_hover_text(tip).clicked() {
+                    self.inst_gizmo = c;
+                }
+            }
+        });
+        let before = self.doc.clone();
+        let mut changed = false;
+        if let Some(g) = self.doc.get_mut(gid) {
+            let e = g.inst.entry(key).or_default();
+            egui::Frame::new().fill(Color32::from_gray(44)).corner_radius(6).inner_margin(6).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(RichText::new("Transform").strong());
+                ui.horizontal(|ui| {
+                    ui.add_sized([56.0, 20.0], egui::Label::new("Move"));
+                    for v in &mut e.offset {
+                        changed |= ui.add(egui::DragValue::new(v).speed(0.02)).changed();
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.add_sized([56.0, 20.0], egui::Label::new("Rotate"));
+                    for v in &mut e.rot {
+                        let mut d = v.to_degrees();
+                        if ui.add(egui::DragValue::new(&mut d).speed(0.5).suffix("°")).changed() {
+                            *v = d.to_radians();
+                            changed = true;
+                        }
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.add_sized([56.0, 20.0], egui::Label::new("Scale"));
+                    if e.scale == 0.0 {
+                        e.scale = 1.0;
+                    }
+                    changed |= ui.add(egui::DragValue::new(&mut e.scale).speed(0.01).range(0.05..=20.0)).changed();
+                });
+            });
+        }
+        // Its own values: the generator's settings (not Generation) with this instance's additions.
+        let materials: Vec<String> = self.doc.materials.iter().map(|m| m.name.clone()).collect();
+        let meshes: Vec<String> = self.doc.meshes.iter().map(|m| m.name.clone()).collect();
+        let sets: Vec<String> = self.doc.material_sets.iter().map(|s| s.name.clone()).collect();
+        let disps: Vec<String> = self.doc.displacements.iter().map(|d| d.name.clone()).collect();
+        let ctx = props::Ctx { accent: palette(self.theme).accent, materials: &materials, meshes: &meshes, sets: &sets, displacements: &disps };
+        if let Some(g) = self.doc.get(gid).cloned() {
+            let add = g.inst.get(&key).map(|e| e.add.clone()).unwrap_or_default();
+            let mut tmp = g.clone();
+            for (k, d) in &add {
+                let mut pv = tmp.pv(k);
+                pv.v += d;
+                tmp.vals.insert(k.clone(), pv);
+            }
+            self.props.hide_gen = true;
+            let ch = props::show(ui, &mut tmp, &mut self.props, &ctx);
+            self.props.hide_gen = false;
+            if ch {
+                let mut add = BTreeMap::new();
+                for k in tmp.vals.keys() {
+                    let d = tmp.pv(k).v - g.pv(k).v;
+                    if d.abs() > 1e-6 {
+                        add.insert(k.clone(), d);
+                    }
+                }
+                if let Some(g) = self.doc.get_mut(gid) {
+                    g.inst.entry(key).or_default().add = add;
+                }
+                changed = true;
+            }
+        }
+        if let Some(g) = self.doc.get_mut(gid) {
+            if g.inst.get(&key).is_some_and(|e| e.is_empty()) {
+                g.inst.remove(&key);
+            }
+        }
+        if changed {
+            self.track_undo(before);
+        }
+    }
+
     fn graph(&mut self, ui: &mut egui::Ui) {
         let (rect, bg) = ui.allocate_exact_size(ui.available_size(), Sense::click_and_drag());
         let painter = ui.painter_at(rect);
-        // Grey studio backdrop like the original's node view.
+        // Grey studio backdrop like the node view.
         let mut m = egui::Mesh::default();
         m.colored_vertex(rect.left_top(), Color32::from_gray(150));
         m.colored_vertex(rect.right_top(), Color32::from_gray(150));
@@ -1214,13 +2009,19 @@ impl TreeCraft {
                 Pos2::new(origin.x - (depth - 1.0) * step_d * 0.5 + d as f32 * step_d, origin.y + off)
             }
         };
-        let at = |id: u32| pos.iter().find(|p| p.0 == id).map(|p| center(p.1, p.2));
+        // Where each node sits: its place in the tidy layout plus wherever the person dragged it.
+        let spots: HashMap<u32, Pos2> = pos.iter().map(|p| (p.0, center(p.1, p.2) + self.graph_offset.get(&p.0).copied().unwrap_or_default() * z)).collect();
+        let at = |id: u32| spots.get(&id).copied();
         for g in &self.doc.gens {
             if let (Some(pp), Some(cc)) = (g.parent.and_then(at), at(g.id)) {
                 let d = cc - pp;
                 let (h1, h2) = if vertical { (Vec2::new(0.0, d.y * 0.45), Vec2::new(0.0, -d.y * 0.45)) } else { (Vec2::new(d.x * 0.45, 0.0), Vec2::new(-d.x * 0.45, 0.0)) };
-                let w = if g.parent == Some(self.doc.root()) { 2.4 } else { 1.8 };
-                painter.add(egui::epaint::CubicBezierShape::from_points_stroke([pp, pp + h1, cc + h2, cc], false, Color32::TRANSPARENT, Stroke::new(w, Color32::from_gray(72))));
+                let w = if g.parent == Some(self.doc.root()) { 3.8 } else { 3.0 };
+                let pts = [pp, pp + h1, cc + h2, cc];
+                let shadow = pts.map(|p| p + Vec2::new(0.0, 1.5));
+                painter.add(egui::epaint::CubicBezierShape::from_points_stroke(shadow, false, Color32::TRANSPARENT, Stroke::new(w + 2.0, Color32::from_black_alpha(50))));
+                painter.add(egui::epaint::CubicBezierShape::from_points_stroke(pts, false, Color32::TRANSPARENT, Stroke::new(w, Color32::from_gray(58))));
+                painter.add(egui::epaint::CubicBezierShape::from_points_stroke(pts, false, Color32::TRANSPARENT, Stroke::new(w * 0.35, Color32::from_gray(150))));
             }
         }
         let roomy = step_d >= 36.0 && step_x >= 50.0;
@@ -1228,12 +2029,12 @@ impl TreeCraft {
         let mut clicked = None;
         let mut drop_target = None;
         let pointer = ui.input(|i| i.pointer.interact_pos());
-        for (id, d, x, kind, name, hidden) in &nodes {
-            let c = center(*d, *x);
+        for (id, _, _, kind, name, hidden) in &nodes {
+            let c = spots[id];
             if !rect.expand(30.0).contains(c) {
                 continue;
             }
-            let r = if *kind == Kind::Tree { 13.0 * z.min(1.4) } else { (step_d.min(step_x) * 0.26).clamp(6.0, 13.0) };
+            let r = if *kind == Kind::Tree { 15.0 * z.min(1.4) } else { (step_d.min(step_x) * 0.28).clamp(7.0, 14.0) };
             let resp = ui.interact(Rect::from_center_size(c, Vec2::splat(r * 2.0 + 6.0)), ui.make_persistent_id(("node", id)), Sense::click_and_drag());
             let sel = self.selected == Some(*id);
             let dark = Color32::from_gray(25);
@@ -1252,27 +2053,39 @@ impl TreeCraft {
             };
             let fill = if *hidden { Color32::from_gray(125) } else { fill };
             if sel {
-                painter.circle_stroke(c, r + 4.0, Stroke::new(2.2, Color32::from_rgb(255, 238, 70)));
+                painter.circle_filled(c, r + 7.0, Color32::from_rgba_unmultiplied(255, 238, 70, 40));
+                painter.circle_stroke(c, r + 4.5, Stroke::new(2.2, Color32::from_rgb(255, 238, 70)));
             }
             if self.graph_drag.is_some() && self.graph_drag != Some(*id) && pointer.is_some_and(|p| p.distance(c) < r + 6.0) {
-                painter.circle_stroke(c, r + 6.0, Stroke::new(2.5, Color32::from_rgb(80, 220, 120)));
+                painter.circle_stroke(c, r + 7.0, Stroke::new(2.5, Color32::from_rgb(80, 220, 120)));
                 drop_target = Some(*id);
             }
-            painter.circle(c, r, fill, Stroke::new(if *kind == Kind::Tree { 2.5 } else { 1.3 }, if *kind == Kind::Tree { Color32::from_gray(235) } else { Color32::from_gray(40) }));
-            if r >= 8.0 || *kind == Kind::Tree {
-                node_icon(&painter, c, r, *kind, gcol);
+            match node_texture(ui.ctx(), *kind) {
+                Some(t) => node_badge(&painter, c, r, t, *kind == Kind::Tree, *hidden, resp.hovered()),
+                None => {
+                    node_disc(&painter, c, r, fill, *kind == Kind::Tree, resp.hovered());
+                    if r >= 8.0 || *kind == Kind::Tree {
+                        node_icon(&painter, c, r, *kind, gcol);
+                    }
+                }
             }
             if (self.graph_names == 1 && roomy) || sel || *kind == Kind::Tree {
                 let col = if sel { Color32::from_rgb(255, 240, 40) } else { Color32::WHITE };
-                let (anchor, align) = if *kind == Kind::Tree && vertical { (c + Vec2::new(r + 6.0, 0.0), egui::Align2::LEFT_CENTER) } else { (c - Vec2::new(0.0, r + 3.0), egui::Align2::CENTER_BOTTOM) };
-                painter.text(anchor, align, name, egui::FontId::proportional(if roomy { 13.5 } else { 11.5 }), col);
+                let (anchor, align) = if *kind == Kind::Tree && vertical { (c + Vec2::new(r + 8.0, 0.0), egui::Align2::LEFT_CENTER) } else { (c - Vec2::new(0.0, r + 5.0), egui::Align2::CENTER_BOTTOM) };
+                let font = egui::FontId::proportional(if roomy { 13.0 } else { 11.5 });
+                // Name on a soft dark pill so it reads on the light backdrop.
+                let galley = painter.layout_no_wrap(name.clone(), font, col);
+                let tr = align.anchor_size(anchor, galley.size());
+                painter.rect_filled(tr.expand2(Vec2::new(5.0, 1.5)), CornerRadius::same(7), Color32::from_black_alpha(110));
+                painter.galley(tr.min, galley, col);
             }
             if self.graph_stats && *kind != Kind::Tree {
                 let n = self.mesh.per_gen.get(id).copied().unwrap_or(0);
                 painter.text(c + Vec2::new(0.0, r + 2.0), egui::Align2::CENTER_TOP, format!("{n}"), egui::FontId::proportional(10.5), Color32::from_gray(30));
             }
             if self.graph_info && *kind == Kind::Tree {
-                let txt = format!("Nodes: {}\nForces: 0\nCollision objects: 0\nProjectors: 0", self.doc.gens.len());
+                let forces = self.doc.objects.iter().filter(|o| o.kind.is_force()).count();
+                let txt = format!("Nodes: {}\nForces: {forces}\nCollision objects: {}\nProjectors: 0", self.doc.gens.len(), self.doc.objects.len() - forces);
                 let anchor = if vertical { c + Vec2::new(-r - 8.0, 0.0) } else { c + Vec2::new(0.0, r + 8.0) };
                 let align = if vertical { egui::Align2::RIGHT_CENTER } else { egui::Align2::CENTER_TOP };
                 painter.text(anchor, align, txt, egui::FontId::proportional(10.0), Color32::from_gray(35));
@@ -1280,15 +2093,22 @@ impl TreeCraft {
             if resp.clicked() || resp.secondary_clicked() {
                 clicked = Some(*id);
             }
-            if resp.drag_started() && *kind != Kind::Tree {
+            if resp.drag_started() {
                 self.graph_drag = Some(*id);
                 self.selected = Some(*id);
             }
+            // Dragging moves the node; letting go on top of another node makes that its parent.
+            if resp.dragged() {
+                *self.graph_offset.entry(*id).or_default() += resp.drag_delta() / z;
+            }
+            if resp.hovered() || resp.dragged() {
+                ui.ctx().set_cursor_icon(if resp.dragged() { egui::CursorIcon::Grabbing } else { egui::CursorIcon::Grab });
+            }
             resp.context_menu(|ui| self.actions_menu(ui));
         }
-        if let (Some(d), Some(p)) = (self.graph_drag, pointer) {
-            if let Some(name) = self.doc.get(d).map(|g| g.name.clone()) {
-                painter.text(p + Vec2::new(12.0, -12.0), egui::Align2::LEFT_BOTTOM, format!("Move {name} under…"), egui::FontId::proportional(12.0), Color32::from_gray(20));
+        if let (Some(d), Some(p), Some(t)) = (self.graph_drag, pointer, drop_target) {
+            if let (Some(a), Some(b)) = (self.doc.get(d), self.doc.get(t)) {
+                painter.text(p + Vec2::new(12.0, -12.0), egui::Align2::LEFT_BOTTOM, format!("Release to move {} under {}", a.name, b.name), egui::FontId::proportional(12.0), Color32::from_gray(20));
             }
         }
         if self.graph_drag.is_some() && !ui.input(|i| i.pointer.any_down()) {
@@ -1296,6 +2116,7 @@ impl TreeCraft {
             if let Some(t) = drop_target {
                 let before = self.doc.clone();
                 if self.doc.reparent(d, t) {
+                    self.graph_offset.remove(&d);
                     self.undo.push(before);
                     self.redo.clear();
                     self.dirty = true;
@@ -1305,6 +2126,11 @@ impl TreeCraft {
                     self.say("That move isn't allowed (leaves and fronds can't have children, and a generator can't go under its own descendants).");
                 }
             }
+        }
+        if self.graph_stats {
+            let forces = self.doc.objects.iter().filter(|o| o.kind.is_force()).count();
+            let txt = format!("Forces: {forces}   ·   Collisions: {}", self.doc.objects.len() - forces);
+            painter.text(Pos2::new(rect.center().x, rect.bottom() - 8.0), egui::Align2::CENTER_BOTTOM, txt, egui::FontId::proportional(11.5), Color32::from_gray(25));
         }
         if self.doc.gens.len() == 1 {
             let c = center(0, 0.0);
@@ -1354,7 +2180,7 @@ impl TreeCraft {
                         let mut m = s.edit_mode;
                         egui::Frame::new().fill(palette(s.theme).entry).corner_radius(6).inner_margin(2).show(ui, |ui| {
                             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
-                                for (i, t) in [(0, "🌱 Generator"), (1, "✳ Node"), (2, "✏ Freehand")] {
+                                for (i, t) in [(0, "🌱 Generator"), (1, "✳ Instance"), (2, "✏ Hand Draw")] {
                                     ui.selectable_value(&mut m, i, RichText::new(t).size(12.0));
                                 }
                             });
@@ -1363,9 +2189,11 @@ impl TreeCraft {
                     });
                 });
                 ui.add_space(4.0);
-                match sel {
-                    None => s.home(ui),
-                    Some((id, _)) => s.gen_props(ui, id),
+                match (s.edit_mode, sel) {
+                    (1, _) => s.instance_panel(ui),
+                    (2, _) => s.hand_panel(ui),
+                    (_, None) => s.home(ui),
+                    (_, Some((id, _))) => s.gen_props(ui, id),
                 }
             });
         });
@@ -1374,13 +2202,18 @@ impl TreeCraft {
     fn set_edit_mode(&mut self, m: usize) {
         if m != self.edit_mode {
             self.edit_mode = m;
-            if m != 0 {
-                self.say("Node and Freehand editing aren't built yet; Generator mode edits whole generators.");
+            self.gizmo_drag = None;
+            self.hand_drag = None;
+            self.stroke.clear();
+            match m {
+                1 => self.say("Instance mode: click a branch to pick it. Q properties, W move, E rotate, R scale."),
+                2 => self.say("Hand Draw mode: pick a branch generator, then draw, place or edit its branches."),
+                _ => {}
             }
         }
     }
 
-    /// "Nothing selected": shortcuts, laid out like the original.
+    /// "Nothing selected": shortcuts, laid out.
     fn home(&mut self, ui: &mut egui::Ui) {
         let w = (ui.available_width() - 8.0) / 2.0;
         let btn = |ui: &mut egui::Ui, t: &str, w: f32| ui.add(egui::Button::new(RichText::new(t).size(13.5)).min_size(Vec2::new(w, 30.0))).clicked();
@@ -1442,7 +2275,9 @@ impl TreeCraft {
         let before = self.doc.clone();
         let materials: Vec<String> = self.doc.materials.iter().map(|m| m.name.clone()).collect();
         let meshes: Vec<String> = self.doc.meshes.iter().map(|m| m.name.clone()).collect();
-        let ctx = props::Ctx { accent: palette(self.theme).accent, materials: &materials, meshes: &meshes };
+        let sets: Vec<String> = self.doc.material_sets.iter().map(|s| s.name.clone()).collect();
+        let disps: Vec<String> = self.doc.displacements.iter().map(|d| d.name.clone()).collect();
+        let ctx = props::Ctx { accent: palette(self.theme).accent, materials: &materials, meshes: &meshes, sets: &sets, displacements: &disps };
         let g = self.doc.get_mut(id).unwrap();
         let mut name = g.texts.get("TreeCraft:Name").cloned();
         if g.kind == Kind::Tree && name.is_none() {
@@ -1483,6 +2318,17 @@ impl TreeCraft {
                 self.pics = Pics::default();
                 self.say("Material pictures reloaded.");
             }
+            Some("new-set") => {
+                self.snapshot();
+                let mi = self.editors.mat;
+                let name = self.doc.materials.get(mi).map_or("Set".into(), |m| format!("{} set", m.name));
+                let mut set = model::MaterialSet::new(&name);
+                set.members.push(model::SetMember { material: Some(mi), weight: 1.0, season: crate::curve::Curve::flat(1.0) });
+                self.doc.material_sets.push(set);
+                self.editors.set = self.doc.material_sets.len() - 1;
+                self.editors.tab = 1;
+                self.dirty = true;
+            }
             Some("new-cutout") => {
                 self.snapshot();
                 let mut m = model::MeshAsset::leaf_card();
@@ -1503,9 +2349,14 @@ impl TreeCraft {
 
     fn output_dock(&mut self, ui: &mut egui::Ui) {
         self.dock(ui, |s, ui| {
-            let mut a = 0;
-            if s.dock_header(ui, "outdock", &["Output"], &mut a) {
+            let mut a = s.out_tab;
+            if s.dock_header(ui, "outdock", &["Output", "UV"], &mut a) {
                 s.output_open = false;
+            }
+            s.out_tab = a;
+            if s.out_tab == 1 {
+                s.uv_view(ui);
+                return;
             }
             egui::Frame::new().fill(palette(s.theme).entry).corner_radius(4).inner_margin(10).show(ui, |ui| {
                 ui.set_min_size(ui.available_size());
@@ -1516,6 +2367,42 @@ impl TreeCraft {
                 });
             });
         });
+    }
+
+    /// The UV tab: the selected generator's texture with its triangles laid out in texture space.
+    fn uv_view(&mut self, ui: &mut egui::Ui) {
+        let (r, resp) = ui.allocate_exact_size(ui.available_size(), Sense::hover());
+        let p = ui.painter_at(r);
+        p.rect_filled(r, CornerRadius::same(4), palette(self.theme).entry);
+        let Some(g) = self.selected.and_then(|id| self.doc.get(id)) else {
+            p.text(r.center(), egui::Align2::CENTER_CENTER, "Select a generator to see its UVs", egui::FontId::proportional(13.0), Color32::from_gray(150));
+            return;
+        };
+        let side = (r.width().min(r.height() - 24.0) - 16.0).max(40.0);
+        let sq = Rect::from_min_size(Pos2::new(r.center().x - side * 0.5, r.top() + 8.0), Vec2::splat(side));
+        panels::checker(&p, sq, 8.0);
+        let mat = self.doc.gens.iter().find(|x| x.id == g.id).and_then(|x| x.material);
+        if let Some(t) = mat.and_then(|i| self.pics.color.get(i)).and_then(|t| t.as_ref()) {
+            p.image(t.id(), sq, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
+        }
+        let to = |uv: [f32; 2]| Pos2::new(sq.left() + uv[0] * side, sq.bottom() - uv[1] * side);
+        // Leaves share their uvs, so each edge is drawn once.
+        let mut seen = std::collections::HashSet::new();
+        let q = |uv: [f32; 2]| ((uv[0] * 2048.0) as i32, (uv[1] * 2048.0) as i32);
+        let stroke = Stroke::new(1.0, Color32::from_rgba_unmultiplied(70, 225, 240, 200));
+        for t in self.mesh.tris.iter().filter(|t| self.mesh.v[t[0] as usize].gen == g.id) {
+            for k in 0..3 {
+                let (a, b) = (self.mesh.v[t[k] as usize].uv, self.mesh.v[t[(k + 1) % 3] as usize].uv);
+                let key = if q(a) < q(b) { (q(a), q(b)) } else { (q(b), q(a)) };
+                if seen.len() < 20_000 && seen.insert(key) {
+                    p.line_segment([to(a), to(b)], stroke);
+                }
+            }
+        }
+        p.rect_stroke(sq, CornerRadius::ZERO, Stroke::new(1.0, Color32::from_gray(90)), egui::StrokeKind::Outside);
+        let mname = mat.and_then(|i| self.doc.materials.get(i)).map_or("no material".to_string(), |m| m.name.clone());
+        p.text(Pos2::new(r.center().x, sq.bottom() + 6.0), egui::Align2::CENTER_TOP, format!("{} · {} · {} edges", g.name, mname, seen.len()), egui::FontId::proportional(11.5), Color32::from_gray(170));
+        resp.on_hover_text("UV layout: where each triangle of the selected generator takes its picture from");
     }
 
     // ------------------------------------------------------------------ tree window
@@ -1542,8 +2429,8 @@ impl TreeCraft {
                     egui::Frame::new().fill(pal.entry).corner_radius(6).inner_margin(2).show(ui, |ui| {
                         ui.horizontal(|ui| {
                             ui.selectable_value(&mut m, 0, s("🌱 Generator"));
-                            ui.selectable_value(&mut m, 1, s("✳ Node"));
-                            ui.selectable_value(&mut m, 2, s("✏ Freehand"));
+                            ui.selectable_value(&mut m, 1, s("✳ Instance")).on_hover_text("Edit one branch on its own (Tab switches modes)");
+                            ui.selectable_value(&mut m, 2, s("✏ Hand Draw")).on_hover_text("Draw and edit branches by hand (Tab switches modes)");
                         });
                     });
                     self.set_edit_mode(m);
@@ -1565,10 +2452,24 @@ impl TreeCraft {
                         }
                     });
                     ui.menu_button(s("🍁 Season"), |ui| {
-                        let mut v = self.doc.season();
-                        if ui.add(egui::Slider::new(&mut v, 0.0..=1.0).text("Summer → autumn")).changed() {
+                        let seasons = self.doc.seasons();
+                        let mut v = self.doc.year();
+                        let label = format!("{} → {}", seasons.first().map_or("", |x| x.name.as_str()), seasons.last().map_or("", |x| x.name.as_str()));
+                        if ui.add(egui::Slider::new(&mut v, 0.0..=1.0).text(label)).on_hover_text("The time of year. Edit the seasons in Global properties ▸ Season").changed() {
                             self.set_tree_value("TreeCraft:Season:Season", v);
                         }
+                        ui.label(RichText::new(format!("Now: {}", self.doc.season_name())).strong());
+                        ui.horizontal(|ui| {
+                            let total: f32 = seasons.iter().map(|x| x.len.max(0.0)).sum::<f32>().max(1e-6);
+                            let mut start = 0.0;
+                            for x in &seasons {
+                                let mid = (start + x.len.max(0.0) * 0.5) / total;
+                                if ui.small_button(&x.name).on_hover_text(format!("Jump to the middle of {}", x.name)).clicked() {
+                                    self.set_tree_value("TreeCraft:Season:Season", mid);
+                                }
+                                start += x.len.max(0.0);
+                            }
+                        });
                     });
                     ui.menu_button(s("📶 LOD"), |ui| {
                         let n = self.doc.tree().f("Dynamic LOD:Number").max(1.0) as usize;
@@ -1576,11 +2477,17 @@ impl TreeCraft {
                     });
                 });
                 group(ui, "Scene", &mut |ui| {
-                    ui.menu_button(s("📦 Scene Objects"), |ui| {
-                        ui.checkbox(&mut self.ground, "Ground");
-                        ui.checkbox(&mut self.grid, "Grid");
-                        ui.checkbox(&mut self.shadow, "Shadow");
-                    });
+                    ui.menu_button(s("📦 Objects"), |ui| {
+                        self.scene_objects_menu(ui);
+                        ui.separator();
+                        ui.menu_button("👁 Show", |ui| {
+                            ui.checkbox(&mut self.ground, "Ground");
+                            ui.checkbox(&mut self.grid, "Grid");
+                            ui.checkbox(&mut self.shadow, "Shadow");
+                        });
+                    })
+                    .response
+                    .on_hover_text("Forces, collision objects, and the ground, grid and shadow");
                     ui.menu_button(s("🌬 Wind"), |ui| {
                         ui.checkbox(&mut self.wind_on, "Play wind");
                         let (mut st, mut fq) = self.doc.wind();
@@ -1614,9 +2521,7 @@ impl TreeCraft {
                 });
                 group(ui, "Post", &mut |ui| {
                     ui.toggle_value(&mut self.ao, s("◑ AO"));
-                    if ui.button(s("🛡 Collision")).clicked() {
-                        self.say("This tree has no collision objects.");
-                    }
+                    ui.toggle_value(&mut self.show_collision, s("🛡 Collision")).on_hover_text("Show collision objects in the 3D view");
                     ui.toggle_value(&mut self.shadow, s("◐ Shade"));
                 });
             });
@@ -1637,15 +2542,18 @@ impl TreeCraft {
         let close = Rect::from_center_size(Pos2::new(tab.right() - 15.0, tab.center().y), Vec2::splat(20.0));
         let cresp = ui.interact(close, ui.make_persistent_id("doctabclose"), Sense::click());
         cross(ui.painter(), close.center(), pal.text.gamma_multiply(if cresp.hovered() { 1.0 } else { 0.6 }));
-        if cresp.on_hover_text("Close this tree (starts a blank one)").clicked() {
-            self.new_from("Blank");
+        if cresp.on_hover_text("Close this tree").clicked() {
+            self.path = None;
+            self.load_doc(model::empty("Untitled"), "Closed the tree.".into());
+            self.show_welcome = true;
         }
         self.ribbon(ui);
 
         let rect = ui.available_rect_before_wrap();
         let resp = ui.allocate_rect(rect, Sense::click_and_drag());
         let shift = ui.input(|i| i.modifiers.shift);
-        if resp.dragged_by(egui::PointerButton::Primary) && !shift {
+        let tool_busy = self.viewport_tools(ui, &resp, rect);
+        if resp.dragged_by(egui::PointerButton::Primary) && !shift && !tool_busy {
             let d = resp.drag_delta();
             self.cam.yaw -= d.x * 0.008;
             self.cam.pitch = (self.cam.pitch + d.y * 0.006).clamp(-1.45, 1.45);
@@ -1662,12 +2570,21 @@ impl TreeCraft {
         if resp.double_clicked() {
             self.frame_tree();
         } else if resp.clicked() {
-            // Click to pick a generator in the 3D view; empty space clears the selection.
+            // Click to pick a generator (or, in Instance and Hand Draw modes, one branch) in the
+            // 3D view; empty space clears the selection. Hand Draw's placing tools use the click.
             if let Some(p) = resp.interact_pointer_pos() {
-                self.selected = render::pick(&self.cam, rect, &self.mesh, p);
+                if self.edit_mode == 0 {
+                    self.selected = render::pick(&self.cam, rect, &self.mesh, p);
+                } else if !(self.edit_mode == 2 && matches!(self.hand_tool, 2 | 4)) {
+                    let hit = render::pick_inst(&self.cam, rect, &self.mesh, p);
+                    if self.edit_mode == 1 || hit.is_some() {
+                        self.selected = hit.map(|h| h.0);
+                    }
+                    self.sel_inst = hit.map(|h| h.1).filter(|&k| k != 0);
+                }
             }
         }
-        // Right-click context menu (SpeedTree-style).
+        // Right-click context menu.
         resp.context_menu(|ui| {
             ui.menu_button("Add geometry to selected", |ui| self.add_menu(ui));
             ui.separator();
@@ -1742,13 +2659,32 @@ impl TreeCraft {
             ao: self.ao,
             ground: self.ground,
             shadow: self.shadow,
-            atlas: self.pics.atlas.as_ref().map(|t| t.id()),
+            mats: self
+                .doc
+                .materials
+                .iter()
+                .map(|m| {
+                    let val = |i: usize, off: f32| m.maps.get(i).filter(|s| s.on).map_or(off, |s| s.v);
+                    render::MatLook {
+                        one_sided: !m.two_sided,
+                        season: m.season,
+                        back: m.back.and_then(|b| self.doc.materials.get(b)).map(|b| b.color()),
+                        rough: val(4, 1.0),
+                        metal: val(5, 0.0),
+                        ao: val(8, 1.0),
+                        opacity: val(1, 1.0),
+                        sss: m.maps.get(6).filter(|s| s.on && s.color != [255; 3]).map(|s| s.color),
+                    }
+                })
+                .collect(),
+            sel_inst: if self.edit_mode == 1 { self.sel_inst } else { None },
+            atlas: self.pics.atlas_img.clone(),
             cells: self.pics.cells.clone(),
-            white: self.pics.white,
         };
         let p = ui.painter_at(rect);
         let t = Instant::now();
         render::draw(&p, rect, &self.cam, &self.mesh, &sh);
+        render::draw_objects(&p, rect, &self.cam, &self.doc.objects, self.show_collision);
         self.draw_ms = t.elapsed().as_secs_f32() * 1000.0;
         self.overlays(&p, rect, ui);
     }
@@ -1779,7 +2715,11 @@ impl TreeCraft {
                 "POLYGONS - MODEL"
             };
             lines.push((String::new(), String::new()));
-            lines.push(("bones:".into(), self.mesh.branches.to_string()));
+            let inst = match self.selected {
+                Some(id) => self.mesh.inst_count.get(&id).copied().unwrap_or(0),
+                None => self.mesh.inst_count.values().sum(),
+            };
+            lines.push(("instances:".into(), inst.to_string()));
             let h = 26.0 + lines.len() as f32 * 14.0;
             let bx = Rect::from_min_size(rect.left_top() + Vec2::new(5.0, 20.0), Vec2::new(172.0, h));
             p.rect_filled(bx, CornerRadius::same(6), Color32::from_rgba_unmultiplied(22, 44, 86, 225));
@@ -1888,13 +2828,17 @@ impl TreeCraft {
             self.dirty = true;
             self.say("Cutout mesh updated.");
         }
+        let before = self.doc.clone();
+        if panels::material_windows(ctx, &mut self.editors, &mut self.doc, &self.pics) {
+            self.track_undo(before);
+        }
         self.curve_window(ctx);
         let mut open = self.prefs_open;
         egui::Window::new("Preferences").open(&mut open).collapsible(false).default_size([560.0, 340.0]).show(ctx, |ui| {
             ui.horizontal_top(|ui| {
                 ui.vertical(|ui| {
                     ui.set_width(130.0);
-                    for (i, c) in ["General", "Appearance", "Viewport", "SpeedTree files"].iter().enumerate() {
+                    for (i, c) in ["General", "Appearance", "Viewport", "Library"].iter().enumerate() {
                         ui.selectable_value(&mut self.prefs_cat, i, RichText::new(*c).size(14.0));
                     }
                 });
@@ -1923,19 +2867,20 @@ impl TreeCraft {
                         ui.checkbox(&mut self.cam.ortho, "Orthographic camera");
                     }
                     3 => {
-                        match &self.install {
-                            Some(d) => ui.label(format!("Using SpeedTree's templates and samples from:\n{}", d.display())),
-                            None => ui.label("SpeedTree isn't installed in Program Files\\SpeedTree. Set the folder below to use its templates."),
-                        };
-                        if ui.button("Choose SpeedTree folder...").clicked() {
-                            if let Some(d) = rfd::FileDialog::new().pick_folder() {
-                                if d.join("tree_templates").is_dir() {
-                                    self.install = Some(d);
-                                } else {
-                                    self.say("That folder doesn't contain tree_templates.");
+                        ui.label(RichText::new("Library").strong());
+                        ui.label(format!("Startup files (File > New) and samples (Browse samples) live in:\n{}", self.library.display()));
+                        ui.label(RichText::new("Edit a file there and save it in place: new trees start from it.").weak());
+                        ui.horizontal(|ui| {
+                            if ui.button("📂 Open folder").clicked() {
+                                open_folder(&self.library);
+                            }
+                            if ui.button("Choose folder...").clicked() {
+                                if let Some(d) = rfd::FileDialog::new().pick_folder() {
+                                    seed_library(&d);
+                                    self.library = d;
                                 }
                             }
-                        }
+                        });
                     }
                     _ => {
                         ui.label(RichText::new("General").strong());
@@ -1977,7 +2922,7 @@ impl TreeCraft {
                     // Header band.
                     let (hr, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 62.0), Sense::hover());
                     ui.painter().rect_filled(hr, CornerRadius { nw: 10, ne: 10, sw: 0, se: 0 }, pal.header);
-                    ui.painter().text(hr.left_center() + Vec2::new(22.0, -7.0), egui::Align2::LEFT_CENTER, "TreeCraft Modeler", egui::FontId::proportional(23.0), pal.text);
+                    ui.painter().text(hr.left_center() + Vec2::new(22.0, -7.0), egui::Align2::LEFT_CENTER, "TreeCraft", egui::FontId::proportional(23.0), pal.text);
                     ui.painter().text(hr.left_center() + Vec2::new(22.0, 15.0), egui::Align2::LEFT_CENTER, format!("procedural tree modeler · v{VERSION}"), egui::FontId::proportional(12.0), Color32::from_gray(150));
                     let cxr = Rect::from_center_size(Pos2::new(hr.right() - 24.0, hr.center().y), Vec2::splat(26.0));
                     let cx = ui.interact(cxr, ui.id().with("welclose"), Sense::click());
@@ -2104,33 +3049,36 @@ impl TreeCraft {
         let mut pick = None;
         let mut pick_path = None;
         egui::Window::new("New tree").open(&mut open).collapsible(false).show(ctx, |ui| {
-            ui.label(RichText::new("Built-in templates").strong());
-            for (t, d) in [("Broadleaf", "Deciduous tree with roots and leaves"), ("Conifer", "Tall pine with whorled branches and needle fronds"), ("Palm", "Palm with a crown of fronds"), ("Grass", "A tuft of grass blades"), ("Blank", "Just a trunk")] {
+            ui.label(RichText::new("Startup files").strong());
+            for t in self.startup_names() {
+                let d = match t.as_str() {
+                    "Broadleaf" => "Deciduous tree with roots and leaves",
+                    "Conifer" => "Tall pine with whorled branches and needle fronds",
+                    "Palm" => "Palm with a crown of fronds",
+                    "Grass" => "A tuft of grass blades",
+                    "Blank" => "Just a trunk",
+                    _ => "",
+                };
                 ui.horizontal(|ui| {
-                    if ui.add(egui::Button::new(t).min_size(Vec2::new(100.0, 26.0))).clicked() {
-                        pick = Some(t);
+                    if ui.add(egui::Button::new(&t).min_size(Vec2::new(100.0, 26.0))).clicked() {
+                        pick = Some(t.clone());
                     }
                     ui.label(RichText::new(d).weak());
                 });
             }
-            if let Some(dir) = &self.install {
-                ui.add_space(6.0);
-                ui.label(RichText::new("SpeedTree templates").strong());
-                for (group, d) in spm::subdirs(&dir.join("tree_templates")) {
-                    ui.horizontal_wrapped(|ui| {
-                        ui.label(RichText::new(format!("{group}:")).weak());
-                        for (name, p) in spm::list(&d, "spm") {
-                            if ui.button(name).clicked() {
-                                pick_path = Some(p);
-                            }
-                        }
-                    });
+            ui.add_space(6.0);
+            ui.label(RichText::new("Samples").strong());
+            ui.horizontal_wrapped(|ui| {
+                for (name, p) in spm::list(&self.library.join("samples"), "tcraft") {
+                    if ui.button(name).clicked() {
+                        pick_path = Some(p);
+                    }
                 }
-            }
+            });
         });
         self.new_win = open && pick.is_none() && pick_path.is_none();
         if let Some(t) = pick {
-            self.new_from(t);
+            self.new_from(&t);
         }
         if let Some(p) = pick_path {
             self.open_path(p);
@@ -2138,10 +3086,103 @@ impl TreeCraft {
 
         let mut open = self.about;
         egui::Window::new("About TreeCraft").open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
-            ui.label(RichText::new(format!("TreeCraft Modeler {VERSION}")).heading());
+            ui.label(RichText::new(format!("TreeCraft {VERSION}")).heading());
             ui.label("A procedural tree modeler: build trees from a graph of generators.");
         });
         self.about = open;
+    }
+}
+
+/// Each kind's round icon (assets/nodes, cut from the icon sheet), made into a texture once.
+fn node_texture(ctx: &egui::Context, kind: Kind) -> Option<egui::TextureId> {
+    let (name, png): (&str, &[u8]) = match kind {
+        Kind::Tree => ("tree", include_bytes!("../assets/nodes/tree.png")),
+        Kind::Branch => ("branch", include_bytes!("../assets/nodes/branch.png")),
+        Kind::Leaf => ("leaf", include_bytes!("../assets/nodes/leaf.png")),
+        Kind::Frond => ("frond", include_bytes!("../assets/nodes/frond.png")),
+        Kind::Cap => ("cap", include_bytes!("../assets/nodes/cap.png")),
+        Kind::Zone => ("zone", include_bytes!("../assets/nodes/zone.png")),
+        Kind::Knot => ("knot", include_bytes!("../assets/nodes/knot.png")),
+        Kind::Cut => ("cut", include_bytes!("../assets/nodes/cut.png")),
+        Kind::Flake => ("flake", include_bytes!("../assets/nodes/flake.png")),
+        Kind::Decal => ("decal", include_bytes!("../assets/nodes/decal.png")),
+        Kind::Photogrammetry => ("photogrammetry", include_bytes!("../assets/nodes/photogrammetry.png")),
+    };
+    let id = egui::Id::new(("node_icon", name));
+    if let Some(t) = ctx.data(|d| d.get_temp::<Option<egui::TextureHandle>>(id)) {
+        return t.map(|t| t.id());
+    }
+    // Shrunk ahead of time so the small nodes stay crisp.
+    let t = image::load_from_memory(png).ok().map(|img| {
+        let small = image::imageops::resize(&img.to_rgba8(), 96, 96, image::imageops::FilterType::Lanczos3);
+        ctx.load_texture(format!("node_{name}"), egui::ColorImage::from_rgba_unmultiplied([96, 96], small.as_raw()), egui::TextureOptions::LINEAR)
+    });
+    ctx.data_mut(|d| d.insert_temp(id, t.clone()));
+    t.map(|t| t.id())
+}
+
+/// A node: its round icon in a bevelled frame (gold for the Tree), with a soft shadow, a light
+/// gloss and a ring when hovered. Hidden generators show greyed out.
+fn node_badge(p: &egui::Painter, c: Pos2, r: f32, tex: egui::TextureId, tree: bool, hidden: bool, hover: bool) {
+    p.circle_filled(c + Vec2::new(0.0, r * 0.22), r * 1.2, Color32::from_black_alpha(80));
+    // Frame: lit from the top, darker below.
+    let (lightc, darkc) = if tree { (Color32::from_rgb(250, 228, 160), Color32::from_rgb(130, 96, 40)) } else { (Color32::from_gray(225), Color32::from_gray(70)) };
+    let fr = r + (r * 0.2).clamp(2.0, 3.5);
+    let mut m = egui::Mesh::default();
+    m.colored_vertex(c, lightc);
+    const N: u32 = 40;
+    for i in 0..=N {
+        let a = i as f32 / N as f32 * std::f32::consts::TAU;
+        let dir = Vec2::new(a.cos(), a.sin());
+        let t = (dir.y * 0.5 + 0.5).clamp(0.0, 1.0);
+        let col = Color32::from_rgb(
+            (lightc.r() as f32 + (darkc.r() as f32 - lightc.r() as f32) * t) as u8,
+            (lightc.g() as f32 + (darkc.g() as f32 - lightc.g() as f32) * t) as u8,
+            (lightc.b() as f32 + (darkc.b() as f32 - lightc.b() as f32) * t) as u8,
+        );
+        m.colored_vertex(c + dir * fr, col);
+        if i > 0 {
+            m.add_triangle(0, i, i + 1);
+        }
+    }
+    p.add(egui::Shape::mesh(m));
+    p.circle_filled(c, r + 0.8, Color32::from_black_alpha(140));
+    let tint = if hidden { Color32::from_gray(110) } else { Color32::WHITE };
+    p.image(tex, Rect::from_center_size(c, Vec2::splat(r * 2.0)), Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), tint);
+    // Gloss on the upper half.
+    p.circle_filled(c + Vec2::new(-r * 0.15, -r * 0.42), r * 0.5, Color32::from_white_alpha(28));
+    if hover {
+        p.circle_stroke(c, fr + 2.0, Stroke::new(1.5, Color32::from_white_alpha(190)));
+    }
+}
+
+fn shade(c: Color32, k: f32) -> Color32 {
+    let f = |x: u8| if k >= 0.0 { x as f32 + (255.0 - x as f32) * k } else { x as f32 * (1.0 + k) };
+    Color32::from_rgb(f(c.r()) as u8, f(c.g()) as u8, f(c.b()) as u8)
+}
+
+/// A glossy node: drop shadow, dark rim, a body lit from the top left, and a soft highlight.
+fn node_disc(p: &egui::Painter, c: Pos2, r: f32, fill: Color32, tree: bool, hover: bool) {
+    p.circle_filled(c + Vec2::new(0.0, r * 0.2), r * 1.12, Color32::from_black_alpha(70));
+    p.circle_filled(c, r + 1.8, if tree { Color32::from_gray(238) } else { shade(fill, -0.55) });
+    let mut m = egui::Mesh::default();
+    m.colored_vertex(c + Vec2::new(-r * 0.3, -r * 0.35), shade(fill, 0.35));
+    const N: u32 = 40;
+    for i in 0..=N {
+        let a = i as f32 / N as f32 * std::f32::consts::TAU;
+        let dir = Vec2::new(a.cos(), a.sin());
+        // Lighter toward the top left, deeper toward the bottom right.
+        let k = -0.28 * (dir.y * 0.8 + dir.x * 0.4).max(0.0) + 0.08 * (-dir.y).max(0.0);
+        m.colored_vertex(c + dir * r, shade(fill, k));
+        if i > 0 {
+            m.add_triangle(0, i, i + 1);
+        }
+    }
+    p.add(egui::Shape::mesh(m));
+    // Glossy crescent near the top.
+    p.circle_filled(c + Vec2::new(-r * 0.18, -r * 0.42), r * 0.42, Color32::from_white_alpha(46));
+    if hover {
+        p.circle_stroke(c, r + 3.0, Stroke::new(1.5, Color32::from_white_alpha(170)));
     }
 }
 
@@ -2214,7 +3255,7 @@ fn cross(p: &egui::Painter, c: Pos2, col: Color32) {
     p.line_segment([c + Vec2::new(-d, d), c + Vec2::new(d, -d)], Stroke::new(1.4, col));
 }
 
-/// Built-in presets standing in for the original's Trunks / Branches / Leaves sub-templates when
+/// Built-in presets standing in for the Trunks / Branches / Leaves sub-templates when
 /// they aren't installed (estimated).
 fn apply_preset(g: &mut Gen, p: &str) {
     let set = |g: &mut Gen, k: &str, v: f32, var: f32| g.setv(k, v, var);
@@ -2318,6 +3359,19 @@ impl eframe::App for TreeCraft {
                 !typing && i.key_pressed(egui::Key::F2),
             ]
         });
+        if !typing && !in_dialog {
+            let (tab, q) = ctx.input_mut(|i| {
+                let tab = i.consume_key(egui::Modifiers::NONE, egui::Key::Tab);
+                let q = [(egui::Key::Q, 'Q'), (egui::Key::W, 'W'), (egui::Key::E, 'E'), (egui::Key::R, 'R')].into_iter().find(|(k, _)| i.modifiers.is_none() && i.key_pressed(*k)).map(|x| x.1);
+                (tab, q)
+            });
+            if tab {
+                self.set_edit_mode((self.edit_mode + 1) % 3);
+            }
+            if let Some(c) = q.filter(|_| self.edit_mode == 1) {
+                self.inst_gizmo = c;
+            }
+        }
         if keys[0] {
             self.pending_undo = None;
             self.undo_step(true);
@@ -2399,6 +3453,12 @@ impl eframe::App for TreeCraft {
         }
         if self.dirty || self.lod != self.built_lod {
             self.regenerate();
+            // Show the new tree (the picture above was drawn from the old one).
+            ctx.request_repaint();
+        }
+        // Only a playing wind animates; otherwise the app sleeps until something happens.
+        if self.wind_on && self.doc.wind().0 > 0.0 {
+            ctx.request_repaint();
         }
 
         if let Some(shot) = &mut self.shot {
@@ -2418,7 +3478,67 @@ impl eframe::App for TreeCraft {
                 }
                 ctx.send_viewport_cmd(egui::ViewportCommand::Close);
             }
+            // Screenshots count frames, so keep drawing.
+            ctx.request_repaint();
         }
-        ctx.request_repaint();
     }
+}
+
+/// The same polyline with `n` evenly spaced points.
+fn resample(pts: &[[f32; 3]], n: usize) -> Vec<[f32; 3]> {
+    let v: Vec<V3> = pts.iter().map(|q| crate::math::v3(q[0], q[1], q[2])).collect();
+    let total: f32 = v.windows(2).map(|w| (w[1] - w[0]).len()).sum();
+    if v.len() < 2 || total <= 0.0 || n < 2 {
+        return pts.to_vec();
+    }
+    let (mut seg, mut walked) = (0usize, 0.0f32);
+    (0..n)
+        .map(|i| {
+            let target = total * i as f32 / (n - 1) as f32;
+            while seg + 2 < v.len() && walked + (v[seg + 1] - v[seg]).len() < target {
+                walked += (v[seg + 1] - v[seg]).len();
+                seg += 1;
+            }
+            let l = (v[seg + 1] - v[seg]).len().max(1e-6);
+            let q = v[seg] + (v[seg + 1] - v[seg]) * ((target - walked) / l).clamp(0.0, 1.0);
+            [q.x, q.y, q.z]
+        })
+        .collect()
+}
+
+/// The library folder: beside the program, or (while developing) in the project's app folder.
+fn default_library() -> PathBuf {
+    let beside = std::env::current_exe().ok().and_then(|e| e.parent().map(|d| d.join("library")));
+    beside.filter(|d| d.is_dir()).unwrap_or_else(|| PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("library"))
+}
+
+/// Write the built-in trees into the library where they're missing (never over edited files).
+fn seed_library(dir: &std::path::Path) {
+    for (sub, names) in [("startup", &model::TEMPLATES[..]), ("samples", &model::TEMPLATES[..4])] {
+        let d = dir.join(sub);
+        let _ = std::fs::create_dir_all(&d);
+        for n in names {
+            let p = d.join(format!("{n}.tcraft"));
+            if !p.exists() {
+                if let Ok(t) = serde_json::to_string_pretty(&model::template(n)) {
+                    let _ = std::fs::write(p, t);
+                }
+            }
+        }
+    }
+}
+
+fn read_tcraft(p: &std::path::Path) -> Result<Doc, String> {
+    std::fs::read_to_string(p).map_err(|e| e.to_string()).and_then(|s| serde_json::from_str::<Doc>(&s).map_err(|e| e.to_string()))
+}
+
+/// Show a folder in the system's file browser.
+fn open_folder(p: &std::path::Path) {
+    let _ = std::fs::create_dir_all(p);
+    #[cfg(windows)]
+    let _ = std::process::Command::new("explorer").arg(p).spawn();
+    #[cfg(target_os = "macos")]
+    let _ = std::process::Command::new("open").arg(p).spawn();
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let _ = std::process::Command::new("xdg-open").arg(p).spawn();
 }

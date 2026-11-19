@@ -18,12 +18,16 @@ pub struct PropState {
     pub filter: String,
     /// A curve someone asked to edit: (generator, key, profile).
     pub open_curve: Option<(u32, String, bool)>,
+    /// Instance mode: leave out the Generation tab.
+    pub hide_gen: bool,
 }
 
 pub struct Ctx<'a> {
     pub accent: Color32,
     pub materials: &'a [String],
     pub meshes: &'a [String],
+    pub sets: &'a [String],
+    pub displacements: &'a [String],
 }
 
 fn fmt(v: f32, int: bool) -> String {
@@ -225,6 +229,68 @@ fn row_ui(ui: &mut egui::Ui, g: &mut Gen, row: &Row, c: &Ctx) -> (bool, Option<b
                     }
                 });
             }
+            RowKind::Types => {
+                ui.vertical(|ui| {
+                    ui.set_width(w);
+                    let mut remove = None;
+                    for (k, t) in g.types.iter_mut().enumerate() {
+                        egui::Frame::new().fill(Color32::from_gray(44)).corner_radius(5).inner_margin(5).show(ui, |ui| {
+                            ui.set_width(w - 10.0);
+                            ui.horizontal(|ui| {
+                                ui.label(RichText::new(format!("Type {}", k + 2)).strong());
+                                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                                    if ui.small_button("✖").on_hover_text("Remove this type").clicked() {
+                                        remove = Some(k);
+                                    }
+                                });
+                            });
+                            for (label, names, cur, none) in [("Material", c.materials, &mut t.material, "Same as first"), ("Mesh", c.meshes, &mut t.mesh, "Same as first")] {
+                                ui.horizontal(|ui| {
+                                    ui.add_sized([58.0, 20.0], egui::Label::new(label));
+                                    let text = cur.and_then(|i| names.get(i).cloned()).unwrap_or_else(|| none.to_string());
+                                    egui::ComboBox::from_id_salt(id.with((k, label))).width((w - 100.0).max(40.0)).selected_text(text).show_ui(ui, |ui| {
+                                        changed |= ui.selectable_value(cur, None, none).changed();
+                                        for (j, n) in names.iter().enumerate() {
+                                            changed |= ui.selectable_value(cur, Some(j), n).changed();
+                                        }
+                                    });
+                                });
+                            }
+                            ui.horizontal(|ui| {
+                                ui.add_sized([58.0, 20.0], egui::Label::new("Weight"));
+                                ui.spacing_mut().slider_width = (w - 140.0).max(40.0);
+                                changed |= ui.add(egui::Slider::new(&mut t.weight, 0.0..=1.0)).on_hover_text("How often leaves use this type").changed();
+                            });
+                        });
+                    }
+                    if let Some(k) = remove {
+                        g.types.remove(k);
+                        changed = true;
+                    }
+                    ui.horizontal(|ui| {
+                        if ui.button("➕").on_hover_text("Add a leaf type").clicked() {
+                            g.types.push(crate::model::LeafType { material: None, set: None, mesh: None, weight: 1.0 });
+                            changed = true;
+                        }
+                        if ui.add_enabled(!g.types.is_empty(), egui::Button::new("➖")).on_hover_text("Remove the last added type").clicked() {
+                            g.types.pop();
+                            changed = true;
+                        }
+                    });
+                });
+            }
+            RowKind::DispMap => {
+                let text = g.disp_map.and_then(|i| c.displacements.get(i).cloned()).unwrap_or_else(|| "Noise".to_string());
+                egui::ComboBox::from_id_salt(id).width((w - 30.0).max(40.0)).selected_text(text).show_ui(ui, |ui| {
+                    changed |= ui.selectable_value(&mut g.disp_map, None, "Noise").changed();
+                    for (k, n) in c.displacements.iter().enumerate() {
+                        changed |= ui.selectable_value(&mut g.disp_map, Some(k), n).changed();
+                    }
+                });
+            }
+            RowKind::Seasons => {
+                changed |= seasons_ui(ui, g, w);
+            }
             RowKind::Color => {
                 changed |= ui.color_edit_button_srgb(&mut g.color).changed();
             }
@@ -361,9 +427,22 @@ fn sections(ui: &mut egui::Ui, g: &mut Gen, tab_list: &[&spec::Tab], st: &mut Pr
             }
             let pid = ui.make_persistent_id(("panel", g.kind as u8, tab.name, si));
             panel(ui, pid, &sec.title, |ui| {
+                // Leaves ▸ Type is drawn as type cards (material, mesh, weight each).
+                let mut in_types = false;
                 for item in kept {
+                    if let Item::Row(r) = item {
+                        if in_types && (r.key.starts_with("Leaves:Type:0:") || matches!(r.kind, RowKind::Mat | RowKind::Mesh | RowKind::Types)) {
+                            continue;
+                        }
+                    }
                     match item {
+                        Item::Group(name) if name == "Type" && sec.title == "Leaves" => {
+                            in_types = true;
+                            ui.add_space(5.0);
+                            changed |= leaf_types(ui, g, c);
+                        }
                         Item::Group(name) => {
+                            in_types = false;
                             ui.add_space(5.0);
                             ui.label(RichText::new(name).size(13.0).strong().color(Color32::from_gray(200)));
                         }
@@ -389,9 +468,194 @@ fn sections(ui: &mut egui::Ui, g: &mut Gen, tab_list: &[&spec::Tab], st: &mut Pr
     changed
 }
 
+/// Tree ▸ Season ▸ Seasons: the seasons in order, each with its share of the year and how far
+/// leaves have turned; a bar shows the year.
+fn seasons_ui(ui: &mut egui::Ui, g: &mut Gen, w: f32) -> bool {
+    let mut list = if g.seasons.is_empty() { crate::model::default_seasons() } else { g.seasons.clone() };
+    let mut changed = false;
+    ui.vertical(|ui| {
+        ui.set_width(w);
+        // The year as a bar.
+        let (bar, _) = ui.allocate_exact_size(Vec2::new(w, 18.0), Sense::hover());
+        let total: f32 = list.iter().map(|s| s.len.max(0.0)).sum::<f32>().max(1e-6);
+        let mut x = bar.left();
+        for s in &list {
+            let sw = bar.width() * s.len.max(0.0) / total;
+            let r = Rect::from_min_size(Pos2::new(x, bar.top()), Vec2::new(sw, bar.height()));
+            let f = s.fall.clamp(0.0, 1.0);
+            let col = if f < 0.5 {
+                Color32::from_rgb((80.0 + 300.0 * f) as u8, 150, 70)
+            } else {
+                Color32::from_rgb(230, (150.0 + 160.0 * (f - 0.5)) as u8, (70.0 + 340.0 * (f - 0.5)) as u8)
+            };
+            ui.painter().rect_filled(r.shrink(0.5), CornerRadius::same(2), col);
+            ui.painter().text(r.center(), egui::Align2::CENTER_CENTER, &s.name, egui::FontId::proportional(10.5), Color32::from_gray(20));
+            x += sw;
+        }
+        let mut remove = None;
+        let mut swap = None;
+        let n = list.len();
+        for (i, s) in list.iter_mut().enumerate() {
+            egui::Frame::new().fill(Color32::from_gray(42)).corner_radius(5).inner_margin(4).show(ui, |ui| {
+                ui.set_width(w - 8.0);
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 3.0;
+                    if ui.add_enabled(i > 0, egui::Button::new("⬆").small()).on_hover_text("Earlier in the year").clicked() {
+                        swap = Some((i, i - 1));
+                    }
+                    if ui.add_enabled(i + 1 < n, egui::Button::new("⬇").small()).on_hover_text("Later in the year").clicked() {
+                        swap = Some((i, i + 1));
+                    }
+                    changed |= ui.add(egui::TextEdit::singleline(&mut s.name).desired_width((ui.available_width() - 30.0).max(40.0))).changed();
+                    if ui.add_enabled(n > 1, egui::Button::new("✖").small()).on_hover_text("Remove this season").clicked() {
+                        remove = Some(i);
+                    }
+                });
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 3.0;
+                    ui.label("Length");
+                    changed |= ui.add(egui::DragValue::new(&mut s.len).speed(0.005).range(0.01..=1.0)).on_hover_text("Its share of the year").changed();
+                    ui.label("Turn");
+                    changed |= ui.add(egui::DragValue::new(&mut s.fall).speed(0.01).range(0.0..=1.0)).on_hover_text("How far leaves have turned: 0 green, 1 bare (leaves drop past their Drop time)").changed();
+                });
+            });
+        }
+        if let Some((a, b)) = swap {
+            list.swap(a, b);
+            changed = true;
+        }
+        if let Some(i) = remove {
+            list.remove(i);
+            changed = true;
+        }
+        ui.horizontal(|ui| {
+            if ui.button("➕").on_hover_text("Add a season at the end of the year").clicked() {
+                list.push(crate::model::SeasonDef { name: format!("Season {}", list.len() + 1), len: 0.25, fall: 0.0 });
+                changed = true;
+            }
+            if ui.button("↺ Default").on_hover_text("Spring, Summer, Autumn and Winter, a quarter of the year each").clicked() {
+                list = crate::model::default_seasons();
+                changed = true;
+            }
+        });
+    });
+    if changed {
+        g.seasons = list;
+    }
+    changed
+}
+
+/// Leaves ▸ Type: one card per leaf type (the first is the generator's own material and mesh),
+/// each with its weight; + adds a type, − or ✖ removes one.
+fn leaf_types(ui: &mut egui::Ui, g: &mut Gen, c: &Ctx) -> bool {
+    let mut changed = false;
+    ui.horizontal(|ui| {
+        ui.label(RichText::new("Type").size(13.0).strong().color(Color32::from_gray(200)));
+        ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+            if ui.small_button("➕").on_hover_text("Add a leaf type").clicked() {
+                g.types.push(crate::model::LeafType { material: None, set: None, mesh: None, weight: 1.0 });
+                changed = true;
+            }
+            if ui.add_enabled(!g.types.is_empty(), egui::Button::new("➖").small()).on_hover_text("Remove the last type").clicked() {
+                g.types.pop();
+                changed = true;
+            }
+        });
+    });
+    let n = 1 + g.types.len();
+    let mut remove = None;
+    for k in 0..n {
+        let id = ui.make_persistent_id(("leaftype", g.id, k));
+        egui::Frame::new().fill(Color32::from_gray(42)).corner_radius(6).inner_margin(egui::Margin { left: 8, right: 8, top: 6, bottom: 8 }).show(ui, |ui| {
+            ui.set_width(ui.available_width());
+            ui.horizontal(|ui| {
+                ui.label(RichText::new(format!("Type {}", k + 1)).size(11.5).color(Color32::from_gray(150)));
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    if ui.add_enabled(n > 1, egui::Button::new("✖").small().frame(false)).on_hover_text("Remove this type").clicked() {
+                        remove = Some(k);
+                    }
+                });
+            });
+            let w = (ui.available_width() - 80.0).max(60.0);
+            let (mat, set, mesh) = if k == 0 { (&mut g.material, &mut g.mat_set, &mut g.mesh) } else { let t = &mut g.types[k - 1]; (&mut t.material, &mut t.set, &mut t.mesh) };
+            // Material: none, a material, or a material set (listed after the materials).
+            ui.horizontal(|ui| {
+                ui.add_sized([70.0, 20.0], egui::Label::new(RichText::new("Material").color(Color32::from_gray(200))));
+                let nm = c.materials.len();
+                let mut code = set.map(|j| 1 + nm + j).or(mat.map(|i| 1 + i)).unwrap_or(0);
+                let text = match code {
+                    0 => "None".to_string(),
+                    x if x <= nm => c.materials.get(x - 1).cloned().unwrap_or_default(),
+                    x => format!("▦ {}", c.sets.get(x - 1 - nm).cloned().unwrap_or_default()),
+                };
+                let before = code;
+                egui::ComboBox::from_id_salt(id.with("mat")).width(w - 28.0).selected_text(text).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut code, 0, "None");
+                    for (j, nmx) in c.materials.iter().enumerate() {
+                        ui.selectable_value(&mut code, 1 + j, nmx);
+                    }
+                    if !c.sets.is_empty() {
+                        ui.separator();
+                        for (j, sn) in c.sets.iter().enumerate() {
+                            ui.selectable_value(&mut code, 1 + nm + j, format!("▦ {sn}")).on_hover_text("A material set: leaves pick from its materials by weight and season");
+                        }
+                    }
+                });
+                if code != before {
+                    (*mat, *set) = match code {
+                        0 => (None, None),
+                        x if x <= nm => (Some(x - 1), None),
+                        x => (None, Some(x - 1 - nm)),
+                    };
+                    changed = true;
+                }
+            });
+            for (label, names, cur, none) in [("Mesh", c.meshes, mesh, "Any")] {
+                ui.horizontal(|ui| {
+                    ui.add_sized([70.0, 20.0], egui::Label::new(RichText::new(label).color(Color32::from_gray(200))));
+                    let text = cur.and_then(|i| names.get(i).cloned()).unwrap_or_else(|| none.to_string());
+                    egui::ComboBox::from_id_salt(id.with(label)).width(w - 28.0).selected_text(text).show_ui(ui, |ui| {
+                        changed |= ui.selectable_value(cur, None, none).changed();
+                        for (j, nm) in names.iter().enumerate() {
+                            changed |= ui.selectable_value(cur, Some(j), nm).changed();
+                        }
+                    });
+                });
+            }
+            ui.horizontal(|ui| {
+                ui.add_sized([70.0, 20.0], egui::Label::new(RichText::new("Weight").color(Color32::from_gray(200))));
+                if k == 0 {
+                    let mut pv = g.pv("Leaves:Type:0:Weight");
+                    if slider_field(ui, id.with("w"), &mut pv.v, 0.0, 1.0, false, 1.0, c.accent, w) {
+                        g.vals.insert("Leaves:Type:0:Weight".into(), pv);
+                        changed = true;
+                    }
+                } else {
+                    changed |= slider_field(ui, id.with("w"), &mut g.types[k - 1].weight, 0.0, 1.0, false, 1.0, c.accent, w);
+                }
+            });
+        });
+        ui.add_space(4.0);
+    }
+    if let Some(k) = remove {
+        if k == 0 {
+            // The second type becomes the first.
+            let t = g.types.remove(0);
+            g.material = t.material;
+            g.mesh = t.mesh;
+            g.set("Leaves:Type:0:Weight", t.weight);
+        } else {
+            g.types.remove(k - 1);
+        }
+        changed = true;
+    }
+    changed
+}
+
 /// The whole properties area for a generator: tab strip, title, search, panels.
 pub fn show(ui: &mut egui::Ui, g: &mut Gen, st: &mut PropState, c: &Ctx) -> bool {
-    let tabs = spec::tabs(g.kind);
+    // Instance mode shows every tab but Generation.
+    let tabs: Vec<&spec::Tab> = spec::tabs(g.kind).iter().filter(|t| !(st.hide_gen && t.name == "Gen")).collect();
     let slot = g.kind.spec_base() as usize;
     let mut changed = false;
     ui.horizontal_top(|ui| {
@@ -417,7 +681,7 @@ pub fn show(ui: &mut egui::Ui, g: &mut Gen, st: &mut PropState, c: &Ctx) -> bool
             if tabs.len() > 1 && tab_btn(ui, "☰", "All", st.tab[slot].is_none()) {
                 st.tab[slot] = None;
             }
-            for t in tabs {
+            for t in &tabs {
                 if tab_btn(ui, t.icon, t.name, st.tab[slot] == Some(t.name) || tabs.len() == 1) {
                     st.tab[slot] = Some(t.name);
                 }
@@ -425,11 +689,11 @@ pub fn show(ui: &mut egui::Ui, g: &mut Gen, st: &mut PropState, c: &Ctx) -> bool
         });
         ui.vertical(|ui| {
             let current: Vec<&spec::Tab> = if !st.filter.trim().is_empty() || tabs.len() == 1 {
-                tabs.iter().collect()
+                tabs.iter().copied().collect()
             } else {
                 match st.tab[slot] {
-                    Some(name) => tabs.iter().filter(|t| t.name == name).collect(),
-                    None => tabs.iter().collect(),
+                    Some(name) => tabs.iter().copied().filter(|t| t.name == name).collect(),
+                    None => tabs.iter().copied().collect(),
                 }
             };
             let title = if !st.filter.trim().is_empty() { "Search results" } else { st.tab[slot].filter(|_| tabs.len() > 1).unwrap_or(if tabs.len() == 1 { tabs[0].name } else { "All" }) };

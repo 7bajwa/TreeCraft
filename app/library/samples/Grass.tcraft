@@ -1,0 +1,2333 @@
+{
+  "name": "Grass",
+  "gens": [
+    {
+      "id": 0,
+      "parent": null,
+      "kind": "Tree",
+      "name": "Tree",
+      "hidden": false,
+      "seed": 1,
+      "vals": {},
+      "curves": {},
+      "texts": {},
+      "color": [
+        150,
+        150,
+        140
+      ],
+      "material": null,
+      "mesh": null,
+      "types": [],
+      "inst": {},
+      "drawn": [],
+      "replaced": [],
+      "seasons": [],
+      "mat_set": null,
+      "disp_map": null
+    },
+    {
+      "id": 1,
+      "parent": 0,
+      "kind": "Branch",
+      "name": "Blades",
+      "hidden": false,
+      "seed": 7920,
+      "vals": {
+        "Displacement:Flares:Radius": {
+          "v": 0.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Generation:Absolute:Number": {
+          "v": 6.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Generation:First": {
+          "v": 0.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Generation:Last": {
+          "v": 0.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Generation:Mode": {
+          "v": 3.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Segments:Length: + Relative": {
+          "v": 1.25,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Segments:Length:Absolute": {
+          "v": 1.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Segments:Length:Relative basis": {
+          "v": 0.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Segments:Radial: + Relative": {
+          "v": 1.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Segments:Radial:Absolute": {
+          "v": 4.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Skin:Radius:+ % of parent": {
+          "v": 0.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Skin:Radius:Absolute": {
+          "v": 0.01,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Skin:Type": {
+          "v": 3.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Spine:Length:+ % of parent": {
+          "v": 0.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Spine:Length:Absolute": {
+          "v": 0.45,
+          "var": 0.391,
+          "gauss": false
+        },
+        "Spine:Noise:Late:Amount": {
+          "v": 0.35,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Spine:Orientation:Start angle": {
+          "v": 0.36,
+          "var": 0.159,
+          "gauss": false
+        },
+        "Spine:Shape:Gravity": {
+          "v": 0.15,
+          "var": 0.142,
+          "gauss": false
+        }
+      },
+      "curves": {},
+      "texts": {},
+      "color": [
+        92,
+        120,
+        58
+      ],
+      "material": 0,
+      "mesh": null,
+      "types": [],
+      "inst": {},
+      "drawn": [],
+      "replaced": [],
+      "seasons": [],
+      "mat_set": null,
+      "disp_map": null
+    },
+    {
+      "id": 2,
+      "parent": 1,
+      "kind": "Frond",
+      "name": "Frond",
+      "hidden": false,
+      "seed": 15839,
+      "vals": {
+        "Generation:Mode": {
+          "v": 0.0,
+          "var": 0.0,
+          "gauss": false
+        },
+        "Shape:Scale:Width": {
+          "v": 0.08,
+          "var": 0.0,
+          "gauss": false
+        }
+      },
+      "curves": {},
+      "texts": {},
+      "color": [
+        96,
+        140,
+        60
+      ],
+      "material": 1,
+      "mesh": null,
+      "types": [],
+      "inst": {},
+      "drawn": [],
+      "replaced": [],
+      "seasons": [],
+      "mat_set": null,
+      "disp_map": null
+    }
+  ],
+  "next_id": 3,
+  "materials": [
+    {
+      "name": "Bark",
+      "two_sided": false,
+      "season": false,
+      "maps": [
+        {
+          "v": 1.0,
+          "color": [
+            92,
+            120,
+            58
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            128,
+            128,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.25,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            200,
+            200,
+            200
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.5,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            0,
+            0,
+            0
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            0,
+            0,
+            0
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "variations": [
+        [
+          55,
+          72,
+          34
+        ],
+        [
+          119,
+          156,
+          75
+        ],
+        [
+          92,
+          120,
+          58
+        ]
+      ],
+      "var_amount": 0.0,
+      "back": null,
+      "spacing": 0.001,
+      "atlas_scale": 1.0,
+      "handling": 0,
+      "atlas_name": "",
+      "max_res": 0,
+      "user_data": "",
+      "look": 0,
+      "cutout": null,
+      "preview_png": null,
+      "uv_areas": [],
+      "cut_rows": []
+    },
+    {
+      "name": "Fronds",
+      "two_sided": true,
+      "season": true,
+      "maps": [
+        {
+          "v": 1.0,
+          "color": [
+            96,
+            140,
+            60
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            128,
+            128,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.25,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            200,
+            200,
+            200
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 0.5,
+          "color": [
+            255,
+            255,
+            255
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            0,
+            0,
+            0
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        },
+        {
+          "v": 1.0,
+          "color": [
+            0,
+            0,
+            0
+          ],
+          "on": true,
+          "file": null,
+          "adj": {
+            "channel": 0,
+            "srgb_to_linear": false,
+            "normalize": false,
+            "invert": false,
+            "invert_rgb": [
+              false,
+              false,
+              false
+            ],
+            "brightness": 0.0,
+            "contrast": 0.0,
+            "saturation": 0.0,
+            "red": 0.0,
+            "green": 0.0,
+            "blue": 0.0,
+            "min": 0.0,
+            "max": 1.0,
+            "recolor": [
+              [
+                0,
+                0,
+                0
+              ],
+              [
+                255,
+                255,
+                255
+              ]
+            ]
+          },
+          "gen": {
+            "source": 0,
+            "gradient": 0,
+            "p0": [
+              0.5,
+              1.0
+            ],
+            "p1": [
+              0.5,
+              0.0
+            ],
+            "noise": 0,
+            "scale": 6.0,
+            "detail": 4,
+            "seed": 1,
+            "ramp": {
+              "stops": [
+                [
+                  0.0,
+                  [
+                    0,
+                    0,
+                    0
+                  ]
+                ],
+                [
+                  1.0,
+                  [
+                    255,
+                    255,
+                    255
+                  ]
+                ]
+              ]
+            },
+            "offset": [
+              0.0,
+              0.0
+            ]
+          }
+        }
+      ],
+      "variations": [
+        [
+          57,
+          84,
+          36
+        ],
+        [
+          124,
+          182,
+          78
+        ],
+        [
+          96,
+          140,
+          60
+        ]
+      ],
+      "var_amount": 0.0,
+      "back": null,
+      "spacing": 0.001,
+      "atlas_scale": 1.0,
+      "handling": 0,
+      "atlas_name": "",
+      "max_res": 0,
+      "user_data": "",
+      "look": 2,
+      "cutout": null,
+      "preview_png": null,
+      "uv_areas": [],
+      "cut_rows": []
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Leaf Card",
+      "lods": [
+        [
+          [
+            0.5,
+            0.0
+          ],
+          [
+            0.8,
+            0.22
+          ],
+          [
+            0.94,
+            0.5
+          ],
+          [
+            0.78,
+            0.82
+          ],
+          [
+            0.5,
+            1.0
+          ],
+          [
+            0.22,
+            0.82
+          ],
+          [
+            0.06,
+            0.5
+          ],
+          [
+            0.2,
+            0.22
+          ],
+          [
+            0.5,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.5,
+            0.0
+          ],
+          [
+            0.88,
+            0.3
+          ],
+          [
+            0.85,
+            0.72
+          ],
+          [
+            0.5,
+            1.0
+          ],
+          [
+            0.15,
+            0.72
+          ],
+          [
+            0.12,
+            0.3
+          ],
+          [
+            0.5,
+            0.5
+          ]
+        ],
+        [
+          [
+            0.5,
+            0.0
+          ],
+          [
+            0.92,
+            0.5
+          ],
+          [
+            0.5,
+            1.0
+          ],
+          [
+            0.08,
+            0.5
+          ],
+          [
+            0.5,
+            0.5
+          ]
+        ]
+      ],
+      "pivot": [
+        0.5,
+        0.0
+      ],
+      "anchors": [],
+      "mask": [
+        [],
+        [],
+        []
+      ],
+      "colors": [],
+      "angle": 0.0,
+      "tess_style": 0,
+      "tess_amount": 0.0,
+      "refine": 0.0,
+      "snap": 0.0,
+      "double_sided": false,
+      "orient": 1,
+      "flip": 0,
+      "flip_normals": false,
+      "fix_winding": false,
+      "growth": 0,
+      "ripple": 0,
+      "scale": 1.0,
+      "material": null,
+      "slot_cfg": [
+        null,
+        null,
+        null
+      ]
+    }
+  ],
+  "objects": [],
+  "material_sets": [],
+  "displacements": []
+}

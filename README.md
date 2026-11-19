@@ -1,6 +1,6 @@
 # TreeCraft Modeler
 
-A procedural tree modeler inspired by SpeedTree — build trees from a graph of generators
+A procedural tree modeler — build trees from a graph of generators
 (trunk, branches, leaves, fronds, decorations), shape them with spine/skin/displacement settings,
 and preview them in a built-in software renderer.
 
@@ -15,7 +15,7 @@ Grab the latest `TreeCraft-vX.Y.Z-windows.zip` from the
 
 - Node graph of generators: Tree → Trunk / Branch / Leaf / Frond, plus decoration kinds
   (Decal, Knot, Cap, Cut, Flake, Zone, Photogrammetry).
-- Generation modes (Interval, Absolute, Phyllotaxy, Bifurcation, Flood, …) from the SpeedTree v10 model.
+- A rich set of generation modes (Interval, Absolute, Phyllotaxy, Bifurcation, Flood, …).
 - Properties panel with Blender-style fields, variance, and a curve editor.
 - Materials with texture-map slots, cutout/leaf-card editor, wind, season, LOD.
 - Export to OBJ (FBX / glB in progress).

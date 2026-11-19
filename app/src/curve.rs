@@ -1,6 +1,6 @@
 //! Curves: the "volume control" beside most settings. A parent curve (green) scales a value by
 //! where each node sits on its parent; a profile curve (blue) scales it along the node itself.
-//! Points are (x 0..1, y multiplier); y may exceed 1 like the original's.
+//! Points are (x 0..1, y multiplier); y may exceed 1 like the.
 
 use eframe::egui::{self, Color32, CornerRadius, Pos2, Rect, Sense, Stroke, Vec2};
 use serde::{Deserialize, Serialize};

@@ -2,18 +2,18 @@ TreeCraft - settings that are shown and saved but don't change the model yet
 ============================================================================
 
 Everything else in the Properties panel now changes the tree. The settings below are kept in
-your files (and read from SpeedTree files) but TreeCraft doesn't act on them yet, usually
+your files (and read from .spm files) but TreeCraft doesn't act on them yet, usually
 because the feature behind them isn't built (forces, UV/textures on bark, physics, growth
 animation, welding, splits, collision, lightmaps).
 
-For each one, please tell me what you see it do in SpeedTree, and I'll build it. The path is
+For each one, please tell me what it should do, and I'll build it. The path is
 Tab > Section > Group > Setting as shown in TreeCraft's Properties panel, followed by the
-setting's key in SpeedTree files.
+setting's key in .spm files.
 
 Also not built yet (outside the Properties panel):
 - Node and Freehand editing modes (Generator mode works)
 - Generators: Cap, Fin, Knot, Vine, Zone, Mesh, Mesh converter, Stitch, Base, Reference,
-  Photogrammetry, Decorations (they're left out when a SpeedTree file is opened);
+  Photogrammetry, Decorations (they're left out when an .spm file is imported);
   Batched leaf loads as an ordinary Leaf
 - Cutout Editor: Straighten, Sections, and picture-traced Generate (it makes a leaf outline)
 - Forces, collision objects, projectors, masks, hand-drawn guides (the five counters under
@@ -23,7 +23,7 @@ Also not built yet (outside the Properties panel):
 - Wind wizard (TreeCraft has a simple preview wind), export formats other than OBJ
 
 Settings whose exact behaviour I estimated from the manual (they work, but please check them
-against SpeedTree): Start roll, Ancestor, Parent Curl, Zigzag, Path, Jink, Early noise
+against a reference): Start roll, Ancestor, Parent Curl, Zigzag, Path, Jink, Early noise
 Threshold, Bifurcation placement, Classic mode spacing, Flood/Parent "+ Relative", segment
 counts (Length/Radial "+ Relative" units), displacement and flare strengths, leaf Fold/Curl/
 Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, Dynamic LOD.
@@ -32,7 +32,7 @@ Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, 
 - Tree > Shape > Unify child orientations    [Shape:Unify child orientations]
 - Tree > Geometry > Branches/Caps    [Geometry:Branches/Caps]
 - Tree > Geometry > Leaves/Fronds/Meshes    [Geometry:Leaves/Fronds/Meshes]
-- Tree > SpeedTree SDK > User data    [SpeedTree SDK:User data]
+- Tree > Export > User data    [Export:User data]
 - Tree > Vertex Color > Vertex colors    [Compute Flags:Vertex colors]
 
 === Branch generator ===
@@ -50,22 +50,17 @@ Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, 
 - Spine > Spine > Length > Match one v tile    [Spine:Length:Match one v tile]
 - Spine > Spine > Length > Stop shape control    [Spine:Length:Stop shape control]
 - Spine > Spine > Length > Shape scale    [Spine:Length:Shape scale]
-- Forces > Forces > Allow forces    [Forces:Allow forces]
+- Spine > Shape Control > Style    [Shape Control:Style]
+- Spine > Shape Control > Position    [Shape Control:Position]
+- Spine > Shape Control > Distribution style    [Shape Control:Distribution style]
+- Spine > Shape Control > Distribution    [Shape Control:Distribution]
+- Spine > Shape Control > Size > Absolute    [Shape Control:Size:Absolute]
+- Spine > Shape Control > Size > + % of size    [Shape Control:Size:+ % of size]
 - Forces > Forces > Align > Style    [Forces:Align:Style]
 - Forces > Forces > Align > Amount    [Forces:Align:Amount]
-- Shape > Shape Control > Style    [Shape Control:Style]
-- Shape > Shape Control > Position    [Shape Control:Position]
-- Shape > Shape Control > Distribution style    [Shape Control:Distribution style]
-- Shape > Shape Control > Distribution    [Shape Control:Distribution]
-- Shape > Shape Control > Size > Absolute    [Shape Control:Size:Absolute]
-- Shape > Shape Control > Size > + % of size    [Shape Control:Size:+ % of size]
 - Skin > Skin > Radius > Clamp > Smooth    [Skin:Smooth]
-- Skin > Skin > Welding > Enabled    [Skin:Welding:Enabled]
 - Skin > Skin > Welding > Keep failed    [Skin:Welding:Keep failed]
 - Skin > Skin > Welding > Force ray casts    [Skin:Welding:Force ray casts]
-- Skin > Skin > Welding > Offset    [Skin:Welding:Offset]
-- Skin > Skin > Welding > Spread > Amount    [Skin:Welding:Spread:Amount]
-- Skin > Skin > Welding > Spread > Upper scale    [Skin:Welding:Spread:Upper scale]
 - Skin > Skin > Welding > Spread > Lower scale    [Skin:Welding:Spread:Lower scale]
 - Skin > Skin > Welding > Blend > Texture    [Skin:Welding:Blend:Texture]
 - Skin > Skin > Welding > Blend > Texture scale    [Skin:Welding:Blend:Texture scale]
@@ -96,7 +91,6 @@ Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, 
 - UV > UV Mapping > Tiling > Style    [UV Mapping:Tiling:Style]
 - UV > UV Mapping > Tiling > Optimize segments    [UV Mapping:Tiling:Optimize segments]
 - UV > UV Mapping > Tiling > V tolerance    [UV Mapping:Tiling:V tolerance]
-- Material > Materials > Branch > Weight    [Materials:Branch:0:Weight]
 - Material > Materials > Extension > Material    [Materials:Extension:Material]
 - Material > Season > Start offset    [Season:Start offset]
 - Material > Season > Time scale    [Season:Time scale]
@@ -146,7 +140,6 @@ Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, 
 - Leaves > Sensitivity > Parent > Amount    [Sensitivity:Parent:Amount]
 - Leaves > Lighting > Style    [Lighting:Style]
 - Leaves > Lighting > Smooth    [Lighting:Smooth]
-- Forces > Forces > Allow forces    [Forces:Allow forces]
 - Forces > Forces > Align > Style    [Forces:Align:Style]
 - Forces > Forces > Align > Amount    [Forces:Align:Amount]
 - Animation > Wind > Cross    [Wind:Cross]
@@ -167,6 +160,5 @@ Twist/Sky influence/Puffiness, frond Fold/Curl/Gravity, Season droop/curl/fold, 
 - Gen > Generation > More > Click place    [Generation:Shared:Click place]
 - Gen > Generation > More > Mesh alignment    [Generation:Shared:Mesh alignment]
 - Frond > Shape > Unification    [Shape:Unification]
-- Forces > Forces > Allow forces    [Forces:Allow forces]
 - Forces > Forces > Align > Style    [Forces:Align:Style]
 - Forces > Forces > Align > Amount    [Forces:Align:Amount]

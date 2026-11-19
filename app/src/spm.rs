@@ -1,4 +1,4 @@
-//! Reads the original's files: models (.spm) and generator templates (.stt). Both are XML,
+//! Imports .spm models and .stt generator templates (how: docs/SPM_IMPORT.md). Both are XML,
 //! usually gzip-compressed: <Generators> with <Property>/<SplineProperty> entries under the same
 //! keys TreeCraft uses, <Links> joining them, and <Assets> with materials and cutout meshes.
 
@@ -61,10 +61,10 @@ pub fn read_file(path: &Path) -> Result<String, String> {
     let bytes = std::fs::read(path).map_err(|e| e.to_string())?;
     if bytes.starts_with(&[0x1f, 0x8b]) {
         let mut s = String::new();
-        flate2::read::GzDecoder::new(&bytes[..]).read_to_string(&mut s).map_err(|e| format!("not a SpeedTree file: {e}"))?;
+        flate2::read::GzDecoder::new(&bytes[..]).read_to_string(&mut s).map_err(|e| format!("not an .spm file: {e}"))?;
         Ok(s)
     } else {
-        String::from_utf8(bytes).map_err(|_| "not a SpeedTree file".to_string())
+        String::from_utf8(bytes).map_err(|_| "not an .spm file".to_string())
     }
 }
 
@@ -94,9 +94,9 @@ fn average_color(png: &[u8]) -> Option<[u8; 3]> {
 /// Parse a model or template. Generators of kinds TreeCraft doesn't build (Cap, Zone, Knot...)
 /// are skipped along with what grows from them; the count is returned.
 pub fn parse(xml: &str, name: &str, base: Option<&Path>) -> Result<(Doc, usize), String> {
-    let x = roxmltree::Document::parse(xml).map_err(|e| format!("not a SpeedTree file: {e}"))?;
+    let x = roxmltree::Document::parse(xml).map_err(|e| format!("not an .spm file: {e}"))?;
     let root = x.root_element();
-    let mut doc = Doc { name: name.to_string(), gens: vec![], next_id: 0, materials: vec![], meshes: vec![] };
+    let mut doc = Doc { name: name.to_string(), gens: vec![], next_id: 0, materials: vec![], meshes: vec![], objects: vec![], material_sets: vec![], displacements: vec![] };
 
     // Assets first so generators can point at them.
     let mut mat_ids: HashMap<i64, usize> = HashMap::new();
@@ -355,22 +355,8 @@ pub fn merge_template(doc: &mut Doc, path: &Path, target: u32) -> Result<u32, St
     first.ok_or_else(|| "the template has no generators TreeCraft can build".into())
 }
 
-/// The original's install folder, if it's on this computer.
-pub fn install_dir() -> Option<PathBuf> {
-    if let Ok(p) = std::env::var("TREECRAFT_SPEEDTREE") {
-        let p = PathBuf::from(p);
-        if p.join("tree_templates").is_dir() {
-            return Some(p);
-        }
-    }
-    let base = PathBuf::from(r"C:\Program Files\SpeedTree");
-    let mut dirs: Vec<PathBuf> = std::fs::read_dir(&base).ok()?.filter_map(|e| e.ok().map(|e| e.path())).filter(|p| p.join("tree_templates").is_dir()).collect();
-    dirs.sort();
-    dirs.pop()
-}
-
-/// Files under a folder with an extension, as (display name, path), sorted like the original's
-/// menus (leading underscores order them, then are hidden).
+/// Files under a folder with an extension, as (display name, path); leading underscores order
+/// them, then are hidden.
 pub fn list(dir: &Path, ext: &str) -> Vec<(String, PathBuf)> {
     let mut out: Vec<(String, PathBuf)> = std::fs::read_dir(dir)
         .map(|rd| {
@@ -403,7 +389,7 @@ mod tests {
     }
     #[test]
     fn parses_a_small_model() {
-        let xml = r#"<SpeedTree><Generators>
+        let xml = r#"<Model><Generators>
             <Generator Type="Tree"><Name>Tree</Name><GUID>a</GUID><Hidden>false</Hidden><Properties/></Generator>
             <Generator Type="Branch"><Name>Trunk</Name><GUID>b</GUID><Hidden>false</Hidden><Properties>
               <Property><Name>Generation:Mode</Name><Value>3</Value></Property>
@@ -416,7 +402,7 @@ mod tests {
           </Generators><Links>
             <Link><SourceGUID>a</SourceGUID><TargetGUID>b</TargetGUID></Link>
             <Link><SourceGUID>b</SourceGUID><TargetGUID>c</TargetGUID></Link>
-          </Links></SpeedTree>"#;
+          </Links></Model>"#;
         let (d, skipped) = parse(xml, "t", None).unwrap();
         assert_eq!(skipped, 1);
         assert_eq!(d.gens.len(), 2);

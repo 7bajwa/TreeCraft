@@ -1,6 +1,6 @@
-//! Every property a generator shows, in the original's layout and under the original's own key
-//! ("Spine:Length:Absolute"), so SpeedTree files load straight into it. Defaults are the values
-//! in the original's blank generator templates (templates/combined/*.stt).
+//! Every property a generator shows, in its layout and under its own key
+//! ("Spine:Length:Absolute"); the .spm importer reads property names into the same keys (see
+//! docs/SPM_IMPORT.md). Defaults are the values a new generator starts with.
 //!
 //! Format (one item per line):
 //!   `## Section @Key:Prefix`   panel section; key prefix defaults to the title, `@` alone = none
@@ -224,13 +224,13 @@ Light seam reduction = num 0 0 1 v ; Bend shading toward the spine near the base
 Roll = num 0 -1 1 v ; Turn the skin around the spine
 Smooth = num 0 0 1 v x
 # Welding
-Enabled = check 1 x
+Enabled = check 1 ; Blend the base of each branch smoothly into its parent's surface
 Keep failed = check 0 x
 Force ray casts = check 0 x
-Offset = num 1 0 5 v x
+Offset = num 1 0 5 v ; Length of the blend, in base radii
 - Spread
-Amount = num 0.1 0 1 v x
-Upper scale = num 0.25 0 1 v x
+Amount = num 0.1 0 1 v ; Stretch the blend further up the branch
+Upper scale = num 0.25 0 1 v ; How wide the base flares where it meets the parent
 Lower scale = num 0.25 0 1 v x
 - Blend
 Texture = num 0.75 0 1 v x
@@ -282,6 +282,7 @@ V tolerance = num 0.025 0 1 v x
 
 const DISPLACEMENT: &str = r#"
 ## Displacement
+Map = dispmap @Displacement:Map ; A displacement picture from the Displacements tab (replaces the noise; Amount and the U/V scales still apply)
 Amount = num 0 -5 5 v p f=0,0;1,1 @Displacement:Amount ; Most a vertex moves in or out (× radius)
 Length amount = num 0 -5 5 v ; Move vertices along the branch too
 Sharpness = curve f=0,0;1,1 ; Remaps the noise: steeper curves give sharper bumps
@@ -312,8 +313,9 @@ const BRANCH_MATERIAL: &str = r#"
 ## Materials
 # Branch @Branch:0
 Material = mat ; Material from the Materials bar (Inherited uses the generator's tint)
-Weight = num 1 0 1 v x
+Weight = num 1 0 1 v ; How often leaves use this first type, against the types added below
 Tint = color @TreeCraft:Tint ; Colour used when the material is Inherited
+More types = types ; More materials and meshes: each leaf picks a type at random by weight
 # Extension @Extension
 Material = combo 0 Inherited x
 ## Season
@@ -394,7 +396,7 @@ Curve fit scalar = num 1 0 5 x
 
 const FORCES: &str = r#"
 ## Forces
-Allow forces = check 1 x ; Forces in the scene act on this generator (no force objects yet)
+Allow forces = check 1 ; Forces in the scene (Generation ▸ Scene Objects) bend this generator's branches
 # Align
 Style = combo 1 None|Individual|Group x
 Amount = num 1 0 1 v x
@@ -526,7 +528,9 @@ Unify child orientations = check 0 x
 Strength = num 0.35 0 2 ; Preview wind strength
 Frequency = num 0.6 0.05 3 ; Gust speed
 ## Season @TreeCraft:Season
-Season = num 0 0 1 ; Summer (0) to autumn (1): leaves droop, curl, colour and drop
+Season = num 0.375 0 1 ; The time of year, from the first season to the last (Spring → Winter by default)
+Blend = num 0.1 0 0.5 ; How gradually one season turns into the next (shared across each border)
+Seasons = seasons ; The seasons in order: their share of the year and how far leaves have turned
 ## Dynamic LOD
 Enabled = check 1 ; Lets the LOD slider in the Tree Window drop detail
 Number = int 3 1 8 ; Number of LOD steps
@@ -538,7 +542,7 @@ Grow scale = num 2 0 5 ; How much surviving leaves grow at the lowest LOD
 ## Geometry
 Branches/Caps = combo 0 Triangles|Quads x
 Leaves/Fronds/Meshes = combo 0 Triangles|Quads x
-## SpeedTree SDK
+## Export
 User data = text x
 ## Vertex Color @Compute Flags
 Vertex colors = check 0 x
@@ -555,6 +559,12 @@ pub enum RowKind {
     Mode,
     Mat,
     Mesh,
+    /// The extra leaf types list (material, mesh and weight each).
+    Types,
+    /// The tree's season list.
+    Seasons,
+    /// A displacement picture from the Displacements tab.
+    DispMap,
     Color,
     Seed,
     Curve,
@@ -709,6 +719,9 @@ pub fn parse(text: &str) -> Vec<Section> {
             "mode" => row.kind = RowKind::Mode,
             "mat" => row.kind = RowKind::Mat,
             "mesh" => row.kind = RowKind::Mesh,
+            "types" => row.kind = RowKind::Types,
+            "seasons" => row.kind = RowKind::Seasons,
+            "dispmap" => row.kind = RowKind::DispMap,
             "color" => row.kind = RowKind::Color,
             "seed" => row.kind = RowKind::Seed,
             "curve" => row.kind = RowKind::Curve,
@@ -818,7 +831,7 @@ pub fn default(kind: Kind, key: &str) -> f32 {
 mod tests {
     use super::*;
     #[test]
-    fn keys_match_the_originals() {
+    fn keys_match_the_importer() {
         for k in [
             "Spine:Length:Absolute",
             "Spine:Length:+ % of parent",
