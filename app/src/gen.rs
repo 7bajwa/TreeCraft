@@ -255,17 +255,23 @@ struct Ev<'a> {
 }
 
 impl Ev<'_> {
-    fn r(&mut self, gauss: bool) -> f32 {
-        if gauss {
+    /// A random amount in -1..1 spread by the distribution (model::DISTRIBUTIONS).
+    fn r(&mut self, dist: u8) -> f32 {
+        let r = &mut self.rng;
+        match dist {
             // Sum of uniforms: a bell curve in -1..1.
-            (self.rng.s() + self.rng.s() + self.rng.s()) / 3.0
-        } else {
-            self.rng.s()
+            1 => (r.s() + r.s() + r.s()) / 3.0,
+            2 => 2.0 * r.f().sqrt() - 1.0,
+            3 => 1.0 - 2.0 * r.f().sqrt(),
+            4 => r.s().signum() * r.f().sqrt(),
+            5 => r.s().signum(),
+            6 => ((r.f() * 5.0).floor().min(4.0) - 2.0) * 0.5,
+            _ => r.s(),
         }
     }
     fn val(&mut self, key: &str) -> f32 {
         let p = self.g.pv(key);
-        let r = if p.var != 0.0 { self.r(p.gauss) } else { 0.0 };
+        let r = if p.var != 0.0 { self.r(p.dist()) } else { 0.0 };
         (p.v + p.var * r) * self.par(key) + self.add.and_then(|a| a.get(key)).copied().unwrap_or(0.0)
     }
     fn par(&self, key: &str) -> f32 {
@@ -547,6 +553,41 @@ struct Builder<'a> {
     max_len: HashMap<u32, f32>,
     seen_len: HashMap<u32, f32>,
     cutouts: HashMap<usize, (Vec<[f32; 2]>, Vec<[usize; 3]>)>,
+    /// Generation ▸ Knockout: the nodes each generator kept so far.
+    crowd: HashMap<u32, Crowd>,
+}
+
+/// Points kept so far, in a grid of cells about as wide as the knockout distance, so a crowded
+/// node is found without comparing every pair.
+#[derive(Default)]
+struct Crowd {
+    cell: f32,
+    grid: HashMap<(i32, i32, i32), Vec<V3>>,
+}
+
+impl Crowd {
+    /// Whether p lies within `dist` of a point kept before; if not, p is kept.
+    fn crowded(&mut self, p: V3, dist: f32) -> bool {
+        if self.cell <= 0.0 {
+            self.cell = dist.max(1e-4);
+        }
+        let cell = self.cell;
+        let at = |v: f32| (v / cell).floor() as i32;
+        // shortcut: looks at most 3 cells out, so nodes far bigger than the first one are under-tested.
+        let reach = ((dist / cell).ceil() as i32).clamp(1, 3);
+        let (x, y, z) = (at(p.x), at(p.y), at(p.z));
+        for dx in -reach..=reach {
+            for dy in -reach..=reach {
+                for dz in -reach..=reach {
+                    if self.grid.get(&(x + dx, y + dy, z + dz)).is_some_and(|v| v.iter().any(|q| (*q - p).len() < dist)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        self.grid.entry((x, y, z)).or_default().push(p);
+        false
+    }
 }
 
 /// Build the tree mesh at an LOD (0 = full detail, 1 = lowest).
@@ -581,6 +622,7 @@ fn build_with(doc: &Doc, max_len: HashMap<u32, f32>, lod: f32) -> (TreeMesh, Has
         max_len,
         seen_len: HashMap::new(),
         cutouts: HashMap::new(),
+        crowd: HashMap::new(),
     };
     let s = doc.size_scalar();
     for g in doc.children(doc.root()) {
@@ -734,7 +776,7 @@ impl Builder<'_> {
         spots.retain_mut(|s| {
             s.t += shift + pos.var * rng.s() * 0.25;
             s.around += rot.v + rot.var * rng.s();
-            if !is_root && clip > 0.0 && (s.t < lo - clip || s.t > hi + clip) {
+            if !is_root && (s.t < lo - clip || s.t > hi + clip) {
                 return false;
             }
             s.t = s.t.clamp(0.0, 1.0);
@@ -810,6 +852,10 @@ impl Builder<'_> {
         }
         if lmax > 0.0 {
             len = len.min(lmax);
+        }
+        if g.b("Spine:Length:Match one v tile") {
+            let base_r = r0 * pe(&prof(g, "Skin:Radius:Absolute"), 0.0).max(0.0).powf(1.0 / ev.val("Skin:Radius:Length compensation").max(0.05));
+            len = TAU * base_r.max(0.0002);
         }
         let kill = ev.val("Skin:Radius:Length kill ratio");
         if len < 1e-3 || (kill > 0.0 && len / r0 > kill) {
@@ -977,7 +1023,10 @@ impl Builder<'_> {
         }
         // Break: snap the branch off at Spot.
         let mut broken = false;
-        if ev.rng.f() < ev.val("Spine:Break:Chance") {
+        // The old roll is still drawn so the rest of the branch's random numbers stay put.
+        let _ = ev.rng.f();
+        let break_roll = Rng::new(hash(ev.f("Spine:Break:Seed").abs() as u64 ^ 0xb4ea, key)).f();
+        if break_roll < ev.val("Spine:Break:Chance") {
             let spot_u = ev.val("Spine:Break:Spot").clamp(0.05, 1.0);
             let keep = ((spot_u * n as f32).ceil() as usize).clamp(2, n + 1);
             pts.truncate(keep);
@@ -1025,6 +1074,10 @@ impl Builder<'_> {
             }
         }
 
+        let ko = ev.val("Generation:Knockout");
+        if ko > 0.0 && !is_root && self.crowd.entry(g.id).or_default().crowded(pts[pts.len() / 2], ko * len * 0.5) {
+            return None;
+        }
         // Instance mode: this branch's own move, turn and scale.
         if let Some(e) = edit {
             inst_transform(&mut pts, &mut side, dir, e);
@@ -1433,6 +1486,10 @@ impl Builder<'_> {
         if knocked_out(&self.doc.objects, base) {
             return;
         }
+        let ko = ev.val("Generation:Knockout");
+        if ko > 0.0 && self.crowd.entry(g.id).or_default().crowded(base + y * (size * 0.5), ko * size) {
+            return;
+        }
         let (type_mat, type_mesh) = self.leaf_type(g, &mut ev.rng);
         let (mesh_idx, pts, tris, pivot) = self.cutout_for(type_mat, type_mesh);
         let (mat, col0) = match type_mat.filter(|&i| i < self.doc.materials.len()) {
@@ -1764,6 +1821,33 @@ mod tests {
         f.strength = 2.0;
         d.objects.push(f);
         assert!(build_lod(&d, 0.0).max.x > build_lod(&base, 0.0).max.x, "the tree leans with the force");
+    }
+
+    #[test]
+    fn knockout_clip_and_break_seed_change_the_tree() {
+        let base = template("Broadleaf");
+        let b1 = base.gens.iter().find(|g| g.name == "Branch 1").unwrap().id;
+        let count = |d: &Doc| build_lod(d, 0.0).inst_count.get(&b1).copied().unwrap_or(0);
+        let mut d = base.clone();
+        d.get_mut(b1).unwrap().vals.insert("Generation:Knockout".into(), pv(1.0, 0.0));
+        assert!(count(&d) < count(&base), "knockout thins crowded branches");
+        // Clip removes what Position pushes past Last.
+        let mut d = base.clone();
+        let g = d.get_mut(b1).unwrap();
+        g.vals.insert("Generation:Shared:Position".into(), pv(0.3, 0.0));
+        g.vals.insert("Generation:Shared:Boundaries:Clip".into(), pv(0.0, 0.0));
+        let tight = count(&d);
+        d.get_mut(b1).unwrap().vals.insert("Generation:Shared:Boundaries:Clip".into(), pv(1.0, 0.0));
+        assert!(tight < count(&d), "clip 0 drops pushed nodes, clip 1 keeps them");
+        // Break picks different branches per seed.
+        let mut d = base.clone();
+        d.get_mut(b1).unwrap().vals.insert("Spine:Break:Chance".into(), pv(0.5, 0.0));
+        let a = build_lod(&d, 0.0).v.len();
+        assert_eq!(a, build_lod(&d, 0.0).v.len(), "same seed, same breaks");
+        d.get_mut(b1).unwrap().vals.insert("Spine:Break:Seed".into(), pv(123.0, 0.0));
+        assert_ne!(a, build_lod(&d, 0.0).v.len(), "another seed breaks others");
+        let mut c = Crowd::default();
+        assert!(!c.crowded(V3::default(), 1.0) && c.crowded(v3(0.5, 0.0, 0.0), 1.0) && !c.crowded(v3(2.5, 0.0, 0.0), 1.0));
     }
 
     #[test]

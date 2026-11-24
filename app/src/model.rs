@@ -15,10 +15,40 @@ pub struct Pv {
     /// Gaussian (bell curve) instead of uniform variance.
     #[serde(default)]
     pub gauss: bool,
+    /// How the random amounts spread, past Uniform and Gaussian (index into DISTRIBUTIONS; 0 =
+    /// whatever `gauss` says, so older files read the same).
+    #[serde(default, skip_serializing_if = "is_zero_u8")]
+    pub dist: u8,
+}
+
+fn is_zero_u8(x: &u8) -> bool {
+    *x == 0
+}
+
+/// Variance distributions: name and what it does.
+pub const DISTRIBUTIONS: [(&str, &str); 7] = [
+    ("Uniform", "Every amount between -variance and +variance is as likely"),
+    ("Gaussian", "Bell curve: most nodes stay near the value, few reach the edges"),
+    ("Favor high", "Most nodes get more than the value"),
+    ("Favor low", "Most nodes get less than the value"),
+    ("Extremes", "Most nodes sit near -variance or +variance, few near the value"),
+    ("Either end", "Each node gets exactly -variance or +variance"),
+    ("Steps", "Each node gets one of five even steps: -1, -1/2, 0, +1/2 or +1 times the variance"),
+];
+
+impl Pv {
+    /// The distribution in use (index into DISTRIBUTIONS).
+    pub fn dist(&self) -> u8 {
+        if self.dist != 0 { self.dist } else { self.gauss as u8 }
+    }
+    pub fn set_dist(&mut self, d: u8) {
+        self.gauss = d == 1;
+        self.dist = if d <= 1 { 0 } else { d };
+    }
 }
 
 pub const fn pv(v: f32, var: f32) -> Pv {
-    Pv { v, var, gauss: false }
+    Pv { v, var, gauss: false, dist: 0 }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

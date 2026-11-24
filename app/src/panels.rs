@@ -1590,13 +1590,11 @@ fn mini_curve(ui: &mut egui::Ui, id: egui::Id, c: &mut curve::Curve, size: Vec2,
     if let Some(at) = resp.interact_pointer_pos() {
         if resp.double_clicked() {
             if let Some(i) = hit(&c.pts, at).filter(|&i| i > 0 && i + 1 < c.pts.len()) {
-                c.pts.remove(i);
+                c.remove_point(i);
                 changed = true;
             }
         } else if resp.clicked() && hit(&c.pts, at).is_none() {
-            let q = from(at);
-            c.pts.push(q);
-            c.sort();
+            c.add_point(from(at));
             changed = true;
         }
     }

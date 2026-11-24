@@ -111,7 +111,7 @@ Absolute = num 1 0 50 v ; Nodes at the parent's start
 # Boundaries @
 First = num 0 0 1 v p ; Lowest spot on the parent where nodes appear
 Last = num 1 0 1 v p ; Highest spot on the parent where nodes appear
-Clip = num 0.025 0 1 v @Generation:Shared:Boundaries:Clip ; Remove nodes pushed past First/Last by more than this
+Clip = num 0.025 0 1 v @Generation:Shared:Boundaries:Clip ; Remove nodes that Position (or its variance) pushes past First/Last by more than this; 0 removes every node outside, 1 keeps them all
 # Common @
 Active = curve x @Generation:Shared:Active ; Turn the generator on per resolution
 Pass = int 1 1 10 x @Generation:Shared:Pass ; When the generator computes
@@ -123,7 +123,7 @@ Pruning = curve p=0,1;1,1 ; Remove nodes where this curve is under 0.5 (left = F
 Extend parent = combo 0 None|Any|Split 1|Split 2|Skinny|Fat|Breaks only|Bottom ; Grow extra nodes from the parent's open end
 Count = num 1 0 10 v @Generation:Shared:Extend parent:Count ; Nodes at each open end
 # Knockout @
-Knockout = num 0 0 1 v x ; Remove nodes crowded by neighbours
+Knockout = num 0 0 1 v ; Remove nodes crowded by their neighbours: higher clears a wider space around each node kept
 # More @
 Click place = combo 0 Ready|Disabled x @Generation:Shared:Click place
 Mesh alignment = combo 0 None|Parent|Ground x @Generation:Shared:Mesh alignment
@@ -138,7 +138,7 @@ const BRANCH: &str = r#"
 Absolute = num 0 0 200 v p ; Base length
 + % of parent = num 0.4 0 3 v p=0,1.164;0.167,1.261;0.333,1.35;0.5,1.393;0.667,1.304;0.833,1.207;1,1.127 ; Add this share of the parent's length
 + % of radius = num 0 0 50 v ; Add this many times the branch's radius
-Match one v tile = check 0 x
+Match one v tile = check 0 ; Make each branch exactly as long as one repeat of its bark (one turn of its base radius), so the texture fits once
 Stop shape control = check 0 x
 Shape scale = num 1 0 3 v x
 - Clamp
@@ -195,7 +195,7 @@ Offset = num 0 0 1 v ; Shift where the path starts
 ## Break @Spine:Break
 Chance = num 0 0 1 v p=0,1;1,0.5 ; Chance a branch snaps off
 Spot = num 0.5 0 1 v ; Where along the branch it breaks
-Seed = num 15000 0 30000 v
+Seed = num 15000 0 30000 v ; Change it to break different branches; the same seed breaks the same ones
 ## Shape Control
 Style = combo 0 None|Sphere|Enabled geometry forces x
 Position = num 0.75 0 2 v x
@@ -208,7 +208,7 @@ Absolute = num 0 0 100 v x
 
 const SKIN: &str = r#"
 ## Skin
-Type = combo 0 Polygons|SubD surface (rectangular attachments)|SubD surface (arbitrary attachments)|Spine only ; Spine only makes no mesh (stems for fronds)
+Type = combo 0 Polygons|SubD surface (rectangular attachments)|SubD surface (arbitrary attachments)|Spine only ; Spine only skins nothing: the branches show as lines in the view and still carry their children (stems for fronds and leaves)
 Visibility = num 1 0 1 v p ; Branches under 0.5 get no mesh
 # Radius
 Absolute = num 0 0 20 v p f=0,1;1,0.243 ; Base radius; the blue curve tapers it to the tip

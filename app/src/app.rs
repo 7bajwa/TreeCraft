@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
-pub const VERSION: &str = "0.4.0";
+pub const VERSION: &str = "0.4.1";
 
 /// Saved preferences (written to LOCALAPPDATA/TreeCraft/prefs.json).
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -164,6 +164,9 @@ fn apply_theme(ctx: &egui::Context, t: Theme) {
         s.spacing.button_padding = Vec2::new(8.0, 3.0);
         s.spacing.interact_size.y = 22.0;
         s.spacing.menu_margin = egui::Margin::same(6);
+        // Quick tooltips: shown 0.15 s after the mouse stops over an icon, gone when it leaves.
+        s.interaction.tooltip_delay = 0.15;
+        s.interaction.tooltip_grace_time = 0.3;
     });
 }
 
@@ -248,6 +251,8 @@ pub struct TreeCraft {
     editors: EditorState,
     pics: Pics,
     curve_edit: Option<CurveEdit>,
+    /// When the tree was last rebuilt (drags rebuild at most every 0.1 s).
+    last_regen: f64,
     prefs_open: bool,
     prefs_cat: usize,
     wind_win: bool,
@@ -332,6 +337,7 @@ impl TreeCraft {
             editors: EditorState::default(),
             pics: Pics::default(),
             curve_edit: None,
+            last_regen: 0.0,
             prefs_open: false,
             prefs_cat: 0,
             wind_win: false,
@@ -484,7 +490,7 @@ impl TreeCraft {
         }
         if let Some(k) = val("--edit-curve") {
             if let Some(id) = self.selected {
-                self.curve_edit = Some(CurveEdit { gen: id, key: k, profile: true, st: curve::EditState { selected: None, dragging: false }, pos: Pos2::new(420.0, 300.0) });
+                self.curve_edit = Some(CurveEdit { gen: id, key: k, profile: true, st: curve::EditState::default(), pos: Pos2::new(420.0, 300.0) });
             }
         }
     }
@@ -870,15 +876,15 @@ impl TreeCraft {
             ui.close();
         }
         ui.menu_button("Variance", |ui| {
-            for (label, var_mode) in [("Clear", 0), ("All uniform", 1), ("All gaussian", 2)] {
+            let modes: Vec<(String, usize)> = std::iter::once(("Clear".to_string(), 0)).chain(model::DISTRIBUTIONS.iter().enumerate().map(|(k, d)| (format!("All {}", d.0.to_lowercase()), k + 1))).collect();
+            for (label, var_mode) in modes {
                 if ui.add_enabled(has, egui::Button::new(label)).clicked() {
                     let before = self.doc.clone();
                     if let Some(g) = self.selected.and_then(|id| self.doc.get_mut(id)) {
                         for p in g.vals.values_mut() {
                             match var_mode {
                                 0 => p.var = 0.0,
-                                1 => p.gauss = false,
-                                _ => p.gauss = true,
+                                k => p.set_dist((k - 1) as u8),
                             }
                         }
                     }
@@ -1215,7 +1221,9 @@ impl TreeCraft {
                         ui.separator();
                         ui.radio_value(&mut s.graph_stats, false, "No statistics");
                         ui.radio_value(&mut s.graph_stats, true, "Polygon count");
-                    });
+                    })
+                    .response
+                    .on_hover_text("Graph view settings: zoom, layout, names and statistics");
                 });
             });
             let h = (ui.available_height() - 30.0).max(60.0);
@@ -1422,6 +1430,24 @@ impl TreeCraft {
             1 => self.instance_gizmo(ui, resp, rect),
             2 => self.hand_draw(ui, resp, rect),
             _ => false,
+        }
+    }
+
+    /// Skin ▸ Type ▸ Spine only: those branches have no mesh, so their spines are drawn as
+    /// lines (brighter when their generator is selected).
+    fn spine_lines(&self, ui: &egui::Ui, rect: Rect) {
+        let only: Vec<u32> = self.doc.gens.iter().filter(|g| !g.hidden && g.kind.render_as() == model::Kind::Branch && g.idx("Skin:Type") == 3).map(|g| g.id).collect();
+        if only.is_empty() {
+            return;
+        }
+        let pr = render::Projector::new(&self.cam, rect);
+        let p = ui.ctx().layer_painter(egui::LayerId::new(egui::Order::Foreground, egui::Id::new("spine_lines"))).with_clip_rect(rect);
+        for info in self.mesh.insts.values().filter(|i| only.contains(&i.gen)) {
+            let col = if self.selected == Some(info.gen) { Color32::from_rgb(255, 200, 80) } else { Color32::from_rgb(200, 170, 120) };
+            let line: Vec<Pos2> = info.pts.iter().filter_map(|&q| pr.project(q).map(|x| x.0)).collect();
+            if line.len() >= 2 {
+                p.add(egui::Shape::line(line, Stroke::new(1.5, col)));
+            }
         }
     }
 
@@ -2295,7 +2321,7 @@ impl TreeCraft {
         }
         if let Some((gid, key, profile)) = self.props.open_curve.take() {
             let pos = ui.ctx().pointer_latest_pos().map(|p| p + Vec2::new(14.0, 8.0)).unwrap_or(Pos2::new(420.0, 300.0));
-            self.curve_edit = Some(CurveEdit { gen: gid, key, profile, st: curve::EditState { selected: None, dragging: false }, pos });
+            self.curve_edit = Some(CurveEdit { gen: gid, key, profile, st: curve::EditState::default(), pos });
         }
     }
 
@@ -2553,6 +2579,7 @@ impl TreeCraft {
         let resp = ui.allocate_rect(rect, Sense::click_and_drag());
         let shift = ui.input(|i| i.modifiers.shift);
         let tool_busy = self.viewport_tools(ui, &resp, rect);
+        self.spine_lines(ui, rect);
         if resp.dragged_by(egui::PointerButton::Primary) && !shift && !tool_busy {
             let d = resp.drag_delta();
             self.cam.yaw -= d.x * 0.008;
@@ -3452,9 +3479,18 @@ impl eframe::App for TreeCraft {
             }
         }
         if self.dirty || self.lod != self.built_lod {
-            self.regenerate();
-            // Show the new tree (the picture above was drawn from the old one).
-            ctx.request_repaint();
+            // While something is dragged, rebuild at most 10 times a second so the control being
+            // dragged (a curve point, a slider) keeps up with the mouse; letting go rebuilds.
+            let now = ctx.input(|i| i.time);
+            let dragging = ctx.dragged_id().is_some() || self.curve_edit.as_ref().is_some_and(|c| c.st.grab != 0);
+            if dragging && now - self.last_regen < 0.1 {
+                ctx.request_repaint_after(std::time::Duration::from_millis(30));
+            } else {
+                self.regenerate();
+                self.last_regen = now;
+                // Show the new tree (the picture above was drawn from the old one).
+                ctx.request_repaint();
+            }
         }
         // Only a playing wind animates; otherwise the app sleeps until something happens.
         if self.wind_on && self.doc.wind().0 > 0.0 {

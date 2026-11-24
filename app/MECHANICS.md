@@ -105,7 +105,7 @@ Sources: the v10 manual (the reference program's public manual, all 250 pages re
 - Fronds: the cutout's outline is stretched along the stem; width at each ring = span of the cutout at that height × Scale:Width × stem length × width profile. Gravity droops edges by Gravity·profile·x²·width; Fold and Curl rotate the halves about the stem by (Fold + Curl·|x|)·π/2; Roll turns the section by Roll·profile·π.
 - Season (Tree > Season slider): leaf season = (slider − Start offset)·Time scale; leaves past Drop time vanish; Droop/Curl/Fold add value·profile·season; branches add Season:Gravity·slider to gravity.
 - Dynamic LOD: level = slider/Number; a node is kept when random < curve(level)·Weight (the Tree's Branches/Leaves/Fronds curves); kept leaves grow by 1 + (Grow scale−1)·(1−kept share)·Scale factor; rings and sides follow the generator's LOD segment curves.
-- Shared generation: Position shifts all nodes (variance per node), Rotation turns them, Clip drops nodes pushed past First/Last by more than Clip, the Pruning curve drops nodes where it's under 0.5, Extend parent adds Count nodes at the parent's tip (Breaks only: broken parents only; Bottom: at the base pointing back), Sink pushes nodes back along their direction.
+- Shared generation: Position shifts all nodes (variance per node), Rotation turns them, Clip drops nodes pushed past First/Last by more than Clip (0 drops every node outside them), the Pruning curve drops nodes where it's under 0.5, Extend parent adds Count nodes at the parent's tip (Breaks only: broken parents only; Bottom: at the base pointing back), Sink pushes nodes back along their direction.
 - Classic: Frequency nodes (Relative style scales by parent length ÷ longest parent), optional Steps; Balanced spacing, Offset, Sweep, Roll, step Spread/Roll. Proportional steps: Steps × parent ratio (at least one). Flood: Absolute + Relative·ratio at random spots (from the Tree node, within Shape:Radius). Parent: at the parent's start. Bifurcation: children where the parent bends more than Threshold·0.25 rad, at least Spacing apart, outside the bend. Phyllotaxy styles 0–5 as the manual lists them (rotations estimated).
 
 ## Materials, cutouts and files
@@ -211,3 +211,11 @@ Sources: the v10 manual (the reference program's public manual, all 250 pages re
   - Two-sided faces seen from behind are lit with the normal flipped.
   - Without a material: leaves and fronds are two-sided, bark is one-sided.
 - Displacement assets can take their heights from a gradient or noise (the same generators as the material maps, values before the colour ramp, 256×256). Brightness, contrast, smoothing and normalize then apply as for files.
+
+## Round 18 rules (TreeCraft's own)
+- Knockout (Generation): a branch is removed when the middle of its spine lies within Knockout × length × 0.5 of a branch of the same generator kept before it; a leaf when its centre lies within Knockout × size of one kept before.
+- Match one V tile (Spine ▸ Length): the branch is exactly one bark repeat long, 2π × its base radius (bark V repeats once per base circumference).
+- Break ▸ Seed: the break roll is random(hash(Seed, branch key)) < Chance, so a seed always breaks the same branches and another seed breaks others.
+- Skin ▸ Type ▸ Spine only: no mesh; the view draws the spines as lines and the branches still carry children.
+- Variance distributions: Uniform, Gaussian, Favor high, Favor low, Extremes, Either end, Steps (formulas in mechanics.json).
+- Curves: per-point smooth/corner points with cubic Bezier handles (pen tool); a curve-wide Smooth curve is Catmull-Rom and keeps its exact shape when per-point editing starts.

@@ -55,11 +55,17 @@ pub fn slider_field(ui: &mut egui::Ui, id: egui::Id, v: &mut f32, lo: f32, hi: f
     let editing_id = id.with("edit");
     let mut text: Option<String> = ui.data(|d| d.get_temp(editing_id));
     if let Some(buf) = text.as_mut() {
-        let r = ui.add_sized([width, h], egui::TextEdit::singleline(buf).align(egui::Align2::CENTER_CENTER));
-        r.request_focus();
-        let done = r.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter));
+        let r = ui.add_sized([width, h], egui::TextEdit::singleline(buf).id(editing_id).align(egui::Align2::CENTER_CENTER));
+        // Focus was asked for once, on the click; asking every frame kept the field (and the
+        // mouse wheel and keys) captured after typing until Enter was pressed.
+        let (enter, esc, pressed, wheel) = ui.input(|i| (i.key_pressed(egui::Key::Enter), i.key_pressed(egui::Key::Escape), i.pointer.any_pressed(), i.smooth_scroll_delta() != Vec2::ZERO));
+        let done = r.lost_focus() || enter || esc || wheel || (pressed && !r.hovered()) || !r.has_focus();
+        if esc {
+            buf.clear(); // nothing parses, so the value stays as it was
+        }
         let mut changed = false;
         if done {
+            ui.memory_mut(|m| m.surrender_focus(editing_id));
             if let Ok(nv) = buf.trim().parse::<f32>() {
                 let nv = if int { nv.round() } else { nv };
                 changed = nv != *v;
@@ -106,6 +112,7 @@ pub fn slider_field(ui: &mut egui::Ui, id: egui::Id, v: &mut f32, lo: f32, hi: f
     }
     if resp.clicked() {
         ui.data_mut(|d| d.insert_temp(editing_id, fmt(*v, int)));
+        ui.memory_mut(|m| m.request_focus(editing_id));
     }
     resp.context_menu(|ui| {
         if ui.button(format!("Reset to default ({})", fmt(def, int))).clicked() {
@@ -134,10 +141,18 @@ fn variance_button(ui: &mut egui::Ui, p: &mut Pv) -> bool {
         ui.set_min_width(150.0);
         ui.horizontal(|ui| {
             changed |= ui.add(egui::DragValue::new(&mut p.var).speed(0.005).max_decimals(4)).changed();
-            egui::ComboBox::from_id_salt("var_dist").width(86.0).selected_text(if p.gauss { "Gaussian" } else { "Uniform" }).show_ui(ui, |ui| {
-                changed |= ui.selectable_value(&mut p.gauss, false, "Uniform").changed();
-                changed |= ui.selectable_value(&mut p.gauss, true, "Gaussian").changed();
-            });
+            let mut d = p.dist();
+            let dists = crate::model::DISTRIBUTIONS;
+            egui::ComboBox::from_id_salt("var_dist").width(96.0).selected_text(dists[(d as usize).min(dists.len() - 1)].0).show_ui(ui, |ui| {
+                for (k, (name, tip)) in dists.iter().enumerate() {
+                    if ui.selectable_value(&mut d, k as u8, *name).on_hover_text(*tip).changed() {
+                        p.set_dist(d);
+                        changed = true;
+                    }
+                }
+            })
+            .response
+            .on_hover_text("How the random amounts spread between -variance and +variance");
             if ui.button("⟲").on_hover_text("Clear variance").clicked() {
                 p.var = 0.0;
                 changed = true;
