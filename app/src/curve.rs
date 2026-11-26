@@ -31,7 +31,8 @@ pub struct Knot {
 
 impl Curve {
     pub fn flat(y: f32) -> Curve {
-        Curve { pts: vec![[0.0, y], [1.0, y]], smooth: false, knots: vec![] }
+        // Smooth by default, so a point added later bends the curve rather than making a corner.
+        Curve { pts: vec![[0.0, y], [1.0, y]], smooth: true, knots: vec![] }
     }
     pub fn from(pts: &[(f32, f32)]) -> Curve {
         let mut c = Curve { pts: pts.iter().map(|&(x, y)| [x, y]).collect(), smooth: pts.len() > 2, knots: vec![] };
@@ -228,9 +229,9 @@ pub struct EditState {
 /// The Curve Editor body. Returns (changed, close-requested).
 ///
 /// Pen-tool editing: press empty space to add a point (keep holding to drag it), press a point
-/// to select and drag it, drag a selected point's handles to bend the curve, Alt+click a point
-/// to switch it between smooth and corner (Alt-dragging a handle breaks it into a corner),
-/// right-click a point for Make smooth / Make sharp / Delete, Delete removes the selected one.
+/// to select and drag it, drag a selected point's handles to bend the curve, right-click or
+/// Alt+click a point to switch it between smooth and corner (Alt-dragging a handle breaks it into
+/// a corner), double-click or Delete removes a point.
 pub fn editor(ui: &mut egui::Ui, c: &mut Curve, st: &mut EditState, col: Color32, value: f32, default: &Curve) -> (bool, bool) {
     let mut changed = false;
     let mut close = false;
@@ -402,36 +403,23 @@ pub fn editor(ui: &mut egui::Ui, c: &mut Curve, st: &mut EditState, col: Color32
     }
     p.text(rect.left_top() + Vec2::new(6.0, 4.0), egui::Align2::LEFT_TOP, format!("× {value:.3}"), egui::FontId::proportional(11.0), Color32::from_gray(170));
 
-    // Right-click a point: remember which one now, since the pointer leaves it for the menu.
+    // Right-click a point switches it between smooth and corner; double-click deletes it.
     if resp.secondary_clicked() {
-        st.menu = resp.interact_pointer_pos().and_then(|h| c.pts.iter().position(|q| to(*q).distance(h) < 11.0));
-        if st.menu.is_some() {
-            st.selected = st.menu;
+        if let Some(i) = resp.interact_pointer_pos().and_then(|h| c.pts.iter().position(|q| to(*q).distance(h) < 11.0)) {
+            let s = c.knot(i).smooth;
+            c.set_smooth(i, !s);
+            st.selected = Some(i);
+            changed = true;
         }
     }
-    resp.context_menu(|ui| {
-        if let Some(i) = st.menu.filter(|&i| i < c.pts.len()) {
-            let smooth = c.knot(i).smooth;
-            if ui.add_enabled(!smooth, egui::Button::new("◯ Make smooth")).clicked() {
-                c.set_smooth(i, true);
-                changed = true;
-                ui.close();
-            }
-            if ui.add_enabled(smooth || c.knot(i).hin != [0.0; 2] || c.knot(i).hout != [0.0; 2], egui::Button::new("◇ Make sharp")).clicked() {
-                c.set_smooth(i, false);
-                changed = true;
-                ui.close();
-            }
-            if ui.add_enabled(i > 0 && i + 1 < c.pts.len(), egui::Button::new("🗑 Delete point")).clicked() {
-                c.remove_point(i);
-                st.selected = None;
-                changed = true;
-                ui.close();
-            }
-        } else {
-            ui.label(egui::RichText::new("Right-click a point to smooth, sharpen or delete it").weak());
+    if resp.double_clicked() {
+        if let Some(i) = resp.interact_pointer_pos().and_then(|h| c.pts.iter().position(|q| to(*q).distance(h) < 11.0)).filter(|&i| i > 0 && i + 1 < c.pts.len()) {
+            c.remove_point(i);
+            st.selected = None;
+            st.grab = 0;
+            changed = true;
         }
-    });
+    }
     let del = ui.input(|i| i.key_pressed(egui::Key::Delete) || i.key_pressed(egui::Key::Backspace));
     if del && !ui.ctx().egui_wants_keyboard_input() {
         if let Some(i) = st.selected.filter(|&i| i > 0 && i + 1 < c.pts.len()) {
@@ -440,7 +428,7 @@ pub fn editor(ui: &mut egui::Ui, c: &mut Curve, st: &mut EditState, col: Color32
             changed = true;
         }
     }
-    ui.label(egui::RichText::new("Click to add · drag points and handles · Alt+click: smooth ⇄ corner · right-click: smooth / sharp / delete · Del removes").size(11.0).weak());
+    ui.label(egui::RichText::new("Click to add · drag points and handles · right-click or Alt+click: smooth ⇄ corner · double-click or Del: delete").size(11.0).weak());
     (changed, close)
 }
 

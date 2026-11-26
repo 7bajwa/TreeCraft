@@ -674,6 +674,19 @@ impl TreeCraft {
     }
 
     fn delete_selected(&mut self) {
+        // Instance (Node) mode: Del removes the picked branch instance (it stops being generated).
+        if self.edit_mode == 1 {
+            if let Some((gid, key)) = self.sel_inst.and_then(|k| self.mesh.insts.get(&k).map(|i| (i.gen, k))) {
+                self.snapshot();
+                if let Some(g) = self.doc.get_mut(gid) {
+                    g.replaced.insert(key);
+                    g.inst.remove(&key);
+                }
+                self.sel_inst = None;
+                self.dirty = true;
+                return;
+            }
+        }
         if let Some(id) = self.selected {
             if self.doc.get(id).is_some_and(|g| g.parent.is_some()) {
                 self.snapshot();
@@ -1477,13 +1490,15 @@ impl TreeCraft {
         let mut handles: Vec<(Pos2, usize, &str, Color32)> = vec![];
         match self.inst_gizmo {
             'Q' => {
-                let mid = base + (tip - base) * 0.5;
+                // A compact gizmo at the instance origin: thickness at the origin, length straight
+                // up, and the rest in a row out to the side.
+                let gap = (r0 * 3.5).max(len * 0.1);
                 let dots = [
-                    (tip, 0, "Length", Color32::from_rgb(250, 200, 60)),
-                    (base + side * (r0 * 2.5).max(len * 0.04), 1, "Thickness", Color32::from_rgb(240, 140, 60)),
-                    (mid + side * (len * 0.15), 2, "Start angle", Color32::from_rgb(120, 200, 255)),
-                    (tip - V3::UP * (len * 0.15), 3, "Gravity", Color32::from_rgb(200, 120, 255)),
-                    (tip + across * (len * 0.12), 4, "Noise", Color32::from_rgb(120, 240, 170)),
+                    (base + V3::UP * (len * 0.25), 0, "Length", Color32::from_rgb(250, 200, 60)),
+                    (base, 1, "Thickness", Color32::from_rgb(240, 140, 60)),
+                    (base + side * gap, 2, "Start angle", Color32::from_rgb(120, 200, 255)),
+                    (base + side * (gap * 2.0), 3, "Gravity", Color32::from_rgb(200, 120, 255)),
+                    (base + side * (gap * 3.0), 4, "Noise", Color32::from_rgb(120, 240, 170)),
                 ];
                 for (q, id, name, col) in dots {
                     if let Some(s) = scr(q) {
@@ -1683,7 +1698,10 @@ impl TreeCraft {
                     let pk = self.hand_drag.take().unwrap().1 as u64;
                     if self.stroke.len() >= 3 {
                         self.snapshot();
-                        let pts = std::mem::take(&mut self.stroke);
+                        let raw = std::mem::take(&mut self.stroke);
+                        // Start with about as many control points as a generated spine of this generator.
+                        let target = self.doc.get(gid).map(|g| (g.f("Segments:Accuracy").round() as usize).clamp(4, 80)).unwrap_or(10);
+                        let pts = if raw.len() > target + 1 { resample(&raw, target) } else { raw };
                         if let Some(g) = self.doc.get_mut(gid) {
                             g.drawn.push(model::DrawnSpline { parent: pk, pts });
                             self.hand_sel = Some(g.drawn.len() - 1);
@@ -1897,28 +1915,35 @@ impl TreeCraft {
                 }
             });
         });
-        ui.horizontal(|ui| {
-            for (c, tip) in [('Q', "Properties: drag the dots for length, thickness, start angle, gravity and noise"), ('W', "Move along the instance's own axes"), ('E', "Rotate about the instance's own axes"), ('R', "Scale the instance")] {
-                if ui.selectable_label(self.inst_gizmo == c, RichText::new(c.to_string()).strong()).on_hover_text(tip).clicked() {
-                    self.inst_gizmo = c;
-                }
-            }
-        });
         let before = self.doc.clone();
         let mut changed = false;
-        if let Some(g) = self.doc.get_mut(gid) {
-            let e = g.inst.entry(key).or_default();
-            egui::Frame::new().fill(Color32::from_gray(44)).corner_radius(6).inner_margin(6).show(ui, |ui| {
-                ui.set_width(ui.available_width());
-                ui.label(RichText::new("Transform").strong());
+        let mut giz = self.inst_gizmo;
+        let mut del_now = false;
+        // Transform as a dropdown on top: the name buttons both label each matrix row and pick
+        // the gizmo. Quick is the property-dots gizmo; Delete removes the instance.
+        egui::CollapsingHeader::new(RichText::new("Transform").strong()).default_open(true).id_salt("inst_transform").show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if ui.selectable_label(giz == 'Q', "⚙ Quick").on_hover_text("Quick-setting dots on the instance: length, thickness, start angle, gravity, noise").clicked() {
+                    giz = 'Q';
+                }
+                if ui.button("🗑 Delete").on_hover_text("Remove this branch instance (Del)").clicked() {
+                    del_now = true;
+                }
+            });
+            if let Some(g) = self.doc.get_mut(gid) {
+                let e = g.inst.entry(key).or_default();
                 ui.horizontal(|ui| {
-                    ui.add_sized([56.0, 20.0], egui::Label::new("Move"));
+                    if ui.selectable_label(giz == 'W', "✥ Move ").clicked() {
+                        giz = 'W';
+                    }
                     for v in &mut e.offset {
                         changed |= ui.add(egui::DragValue::new(v).speed(0.02)).changed();
                     }
                 });
                 ui.horizontal(|ui| {
-                    ui.add_sized([56.0, 20.0], egui::Label::new("Rotate"));
+                    if ui.selectable_label(giz == 'E', "⟳ Rotate").clicked() {
+                        giz = 'E';
+                    }
                     for v in &mut e.rot {
                         let mut d = v.to_degrees();
                         if ui.add(egui::DragValue::new(&mut d).speed(0.5).suffix("°")).changed() {
@@ -1928,13 +1953,20 @@ impl TreeCraft {
                     }
                 });
                 ui.horizontal(|ui| {
-                    ui.add_sized([56.0, 20.0], egui::Label::new("Scale"));
+                    if ui.selectable_label(giz == 'R', "⤢ Scale").clicked() {
+                        giz = 'R';
+                    }
                     if e.scale == 0.0 {
                         e.scale = 1.0;
                     }
                     changed |= ui.add(egui::DragValue::new(&mut e.scale).speed(0.01).range(0.05..=20.0)).changed();
                 });
-            });
+            }
+        });
+        self.inst_gizmo = giz;
+        if del_now {
+            self.delete_selected();
+            return;
         }
         // Its own values: the generator's settings (not Generation) with this instance's additions.
         let materials: Vec<String> = self.doc.materials.iter().map(|m| m.name.clone()).collect();
@@ -2578,13 +2610,17 @@ impl TreeCraft {
         let rect = ui.available_rect_before_wrap();
         let resp = ui.allocate_rect(rect, Sense::click_and_drag());
         let shift = ui.input(|i| i.modifiers.shift);
-        let tool_busy = self.viewport_tools(ui, &resp, rect);
+        // Alt+drag always orbits, even in Instance/Hand Draw modes (the tools don't grab it).
+        let alt = ui.input(|i| i.modifiers.alt);
+        let tool_busy = !alt && self.viewport_tools(ui, &resp, rect);
         self.spine_lines(ui, rect);
-        if resp.dragged_by(egui::PointerButton::Primary) && !shift && !tool_busy {
+        // Right-drag always orbits (even in Instance/Hand Draw modes); left-drag orbits when a tool
+        // isn't using it; middle-drag or Shift+drag pans.
+        if (resp.dragged_by(egui::PointerButton::Primary) && !shift && !tool_busy) || resp.dragged_by(egui::PointerButton::Secondary) {
             let d = resp.drag_delta();
             self.cam.yaw -= d.x * 0.008;
             self.cam.pitch = (self.cam.pitch + d.y * 0.006).clamp(-1.45, 1.45);
-        } else if resp.dragged_by(egui::PointerButton::Secondary) || resp.dragged_by(egui::PointerButton::Middle) || (resp.dragged() && shift) {
+        } else if resp.dragged_by(egui::PointerButton::Middle) || (resp.dragged() && shift) {
             let d = resp.drag_delta();
             self.cam.pan(d.x, d.y, rect.height());
         }

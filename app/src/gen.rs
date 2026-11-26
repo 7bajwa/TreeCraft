@@ -1151,6 +1151,22 @@ impl Builder<'_> {
             pts.push(raw[seg] + (raw[seg + 1] - raw[seg]) * f);
         }
         let mut ev = Ev { g, trel: 0.5, rng: rng.clone(), add: g.inst.get(&key).map(|e| &e.add) };
+        // Gravity and noise, like a generated spine, kept on the drawn shape (base stays put).
+        let grav = ev.val("Spine:Shape:Gravity") + ev.val("Season:Gravity") * self.season;
+        let gc = prof(g, "Spine:Shape:Gravity");
+        let (late, late_turb, late_smooth) = (ev.val("Spine:Noise:Late:Amount"), ev.val("Spine:Noise:Late:Turbulence"), ev.val("Spine:Noise:Late:Smooth"));
+        let lc = prof(g, "Spine:Noise:Late:Amount");
+        if grav != 0.0 || late != 0.0 {
+            let nseed = (ev.val("Spine:Noise:Seed").abs() as u64) ^ key;
+            let amp = late * LATE_K * total * (1.0 - late_smooth);
+            for i in 1..pts.len() {
+                let u = i as f32 / n as f32;
+                pts[i] = pts[i] - V3::UP * (grav * pe(&gc, u) * GRAVITY_K * total * 0.1 * u * u);
+                if late != 0.0 {
+                    pts[i] = pts[i] + noise3(nseed ^ 0x1a7e, u * (1.0 + late_turb * 8.0)) * (amp * pe(&lc, u) * u);
+                }
+            }
+        }
         let size = self.doc.size_scalar() * ev.val("Generation:Size scalar");
         let pr = if parent.rad.iter().any(|&r| r > 0.0) { parent.nearest(pts[0]).1 } else { 0.0 };
         let r0 = (ev.val("Skin:Radius:Absolute") * size + ev.val("Skin:Radius:+ % of parent") * pr).max(0.0005);
